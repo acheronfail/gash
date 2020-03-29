@@ -26,7 +26,7 @@ fn git_sha1<S: AsRef<str>>(temp_file: S) -> String {
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
-fn git<S, I>(args: I) -> Result<(), String>
+fn git<S, I>(args: I) -> Result<String, String>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
@@ -39,7 +39,7 @@ where
     if !output.status.success() {
         Err(format!("Failed to run git!\n{:?}", output))
     } else {
-        Ok(())
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     }
 }
 
@@ -47,13 +47,13 @@ fn main() {
     let args = Args::parse();
     let commit_template = CommitTemplate::new();
 
-    println!(
-        "Note that --parallel can produce inconsistent results, due to simultaneous iterations"
-    );
+    let prefix = args
+        .prefix
+        .unwrap_or_else(|| git(&["config", "--global", "gash.default"]).unwrap());
 
     // Print results.
     let result = commit_template
-        .brute_force_sha1(&args.prefix, args.parallel)
+        .brute_force_sha1(&prefix, args.parallel)
         .expect("Failed to brute force hash!");
 
     println!("sha1:           {}", &result.sha1);
