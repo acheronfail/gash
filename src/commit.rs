@@ -5,9 +5,8 @@ use crypto::sha1::Sha1;
 use rayon::prelude::*;
 use regex::{Captures, Regex};
 
-use crate::Spiral;
+use crate::{Args, Spiral};
 
-const SPIRAL_MAX: i64 = 3600;
 const COMMIT_MESSAGE_RE: &str =
   r"(?m)^(?P<prefix>(?:author|committer).*> )(?P<timestamp>\d+)(?P<suffix>.*)$";
 
@@ -88,32 +87,27 @@ impl CommitTemplate {
       .to_string()
   }
 
-  pub fn brute_force_sha1<S: AsRef<str>>(
-    &self,
-    prefix: S,
-    parallel: bool,
-  ) -> Option<BruteForceResult> {
-    let prefix = prefix.as_ref();
+  pub fn brute_force_sha1(&self, args: &Args) -> Option<BruteForceResult> {
+    let prefix = &args.prefix;
     let mapper = |(da, dc)| {
       let new_commit = self.with_diff(da, dc);
 
       let mut hasher = Sha1::new();
       hasher.input_str(&format!("commit {}\0{}", new_commit.len(), new_commit));
       let hash = hasher.result_str();
-      if hash.starts_with(prefix) {
-        Some(BruteForceResult {
+      match hash.starts_with(prefix) {
+        true => Some(BruteForceResult {
           sha1: hash,
           commit_contents: new_commit,
           author_timestamp_delta: da,
           committer_timestamp_delta: dc,
-        })
-      } else {
-        None
+        }),
+        false => None,
       }
     };
 
-    let spiral = Spiral::new(SPIRAL_MAX);
-    if parallel {
+    let spiral = Spiral::new(args.max_variance);
+    if args.parallel {
       spiral.par_iter().find_map_any(mapper)
     } else {
       spiral.iter().find_map(mapper)

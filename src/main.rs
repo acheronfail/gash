@@ -3,8 +3,6 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::process::Command;
 
-use clap::Clap;
-
 mod cli;
 mod commit;
 mod spiral;
@@ -47,26 +45,13 @@ fn main() {
     let args = Args::parse();
     let commit_template = CommitTemplate::new();
 
-    let prefix = match args.prefix {
-        Some(prefix) => prefix,
-        None => git(&["config", "gash.default"])
-            .expect("No prefix given and no value set for gash.default in git config"),
-    };
-
-    let parallel = match args.parallel {
-        // If set via CLI, then honour that.
-        true => true,
-        // Otherwise, try and read git config
-        false => match git(&["config", "gash.parallel"]) {
-            Ok(s) => s == "true",
-            _ => false,
-        },
-    };
-
     // Print results.
-    let result = commit_template
-        .brute_force_sha1(&prefix, parallel)
-        .expect("Failed to brute force hash!");
+    println!("dry_run:        {}", args.dry_run);
+    println!("max_variance:   {}", args.max_variance);
+
+    let result = commit_template.brute_force_sha1(&args).expect(
+        "Failed to brute force hash! Try increasing the variance with the --max-variance flag.",
+    );
 
     println!("sha1:           {}", &result.sha1);
     println!("author_diff:    {}s", result.author_timestamp_delta);
