@@ -1,12 +1,14 @@
 use clap::Clap;
+use clap::{crate_authors, crate_version};
 
 #[derive(Clap)]
-#[clap(version = "1.0")]
+#[clap(version = crate_version!(), author = crate_authors!())]
 pub struct Args {
-  /// The desired prefix of the hash.
-  /// TODO: parse and validate as hex
-  pub prefix: String,
+  /// A hex string which is the desired prefix of the hash. If this is not
+  /// provided then it defaults to "git config --global gash.default".
+  pub prefix: Option<String>,
 
+  /// Whether brute forcing the hash should be run in parallel.
   #[clap(short = "p", long = "parallel")]
   pub parallel: bool,
 
