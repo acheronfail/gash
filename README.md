@@ -4,8 +4,13 @@
 
 #### From Source (via Cargo)
 
+Until `clap v3` is published, you'll have to install this package locally.
+This crate can't be published until `clap v3` is published too.
+
 ```bash
-cargo install gash
+git clone https://github.com/acheronfail/gash/
+cd gash
+cargo install --path .
 ```
 
 ## Usage
@@ -20,7 +25,6 @@ You can either run it via the command line:
 
 ```bash
 cd path/to/your/git/repository
-# Amend the last commit to start with "cafe":
 gash [options...]
 ```
 
