@@ -47,13 +47,25 @@ fn main() {
     let args = Args::parse();
     let commit_template = CommitTemplate::new();
 
-    let prefix = args
-        .prefix
-        .unwrap_or_else(|| git(&["config", "--global", "gash.default"]).unwrap());
+    let prefix = match args.prefix {
+        Some(prefix) => prefix,
+        None => git(&["config", "gash.default"])
+            .expect("No prefix given and no value set for gash.default in git config"),
+    };
+
+    let parallel = match args.parallel {
+        // If set via CLI, then honour that.
+        true => true,
+        // Otherwise, try and read git config
+        false => match git(&["config", "gash.parallel"]) {
+            Ok(s) => s == "true",
+            _ => false,
+        },
+    };
 
     // Print results.
     let result = commit_template
-        .brute_force_sha1(&prefix, args.parallel)
+        .brute_force_sha1(&prefix, parallel)
         .expect("Failed to brute force hash!");
 
     println!("sha1:           {}", &result.sha1);
