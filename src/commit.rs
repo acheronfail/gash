@@ -7,6 +7,7 @@ use regex::{Captures, Regex};
 
 use crate::Spiral;
 
+const SPIRAL_MAX: i64 = 3600;
 const COMMIT_MESSAGE_RE: &str =
   r"(?m)^(?P<prefix>(?:author|committer).*> )(?P<timestamp>\d+)(?P<suffix>.*)$";
 
@@ -111,7 +112,7 @@ impl CommitTemplate {
       }
     };
 
-    let spiral = Spiral::new(3600);
+    let spiral = Spiral::new(SPIRAL_MAX);
     if parallel {
       spiral.par_iter().find_map_any(mapper)
     } else {
