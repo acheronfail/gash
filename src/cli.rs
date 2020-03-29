@@ -17,8 +17,8 @@ struct ClapArgs {
 
   /// The max distance (in seconds) gash can modify the commit times.
   /// Defaults to one hour.
-  #[clap(short = "m", long = "max-variance", default_value = "3600")]
-  pub max_variance: i64,
+  #[clap(short = "m", long = "max-variance")]
+  pub max_variance: Option<i64>,
 
   /// Whether or not to perform a dry run. This won't create a new repository,
   /// it will just run log out the generated pattern.
@@ -54,11 +54,22 @@ impl Args {
       },
     };
 
+    let max_variance = match args.max_variance {
+      Some(max_variance) => max_variance,
+      None => git(&["config", "gash.max-variance"]).map_or_else(
+        |_| 3600,
+        |s| {
+          s.parse::<i64>()
+            .expect("Failed to parse gash.max-variance as i64!")
+        },
+      ),
+    };
+
     Args {
       prefix,
       parallel,
+      max_variance,
       dry_run: args.dry_run,
-      max_variance: args.max_variance,
     }
   }
 }
