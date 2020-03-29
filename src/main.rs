@@ -75,8 +75,9 @@ fn main() {
     // Write out patched commit.
     let temp_file = "/tmp/gash";
     OpenOptions::new()
-        .write(true)
         .create(true)
+        .write(true)
+        .truncate(true)
         .open(&temp_file)
         .expect("Failed to open temp file")
         .write_fmt(format_args!("{}", result.commit_contents))
@@ -93,9 +94,9 @@ fn main() {
 
     // Re-write the repository so the last commit has the hash.
     if args.dry_run {
-        println!("Not amending commit due to --dry-run");
+        eprintln!("Not amending commit due to --dry-run");
     } else {
-        println!("Patching last commit to include new hash...");
+        eprintln!("Patching last commit to include new hash...");
 
         // Soft reset to the previous commit.
         // If there's only one commit in the repository then this will fail, but that's okay.
