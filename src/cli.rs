@@ -3,22 +3,37 @@ use clap::{crate_authors, crate_version};
 
 use crate::git;
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 #[clap(version = crate_version!(), author = crate_authors!())]
-struct ClapArgs {
+pub struct Args {
   /// A hex string which is the desired prefix of the hash. If this is not
   /// provided then it defaults to "git config --global gash.default".
-  pub prefix: Option<String>,
+  prefix: Option<String>,
+
+  /// This field is used to cache the computed prefix so it's not computed each
+  /// time that `.prefix()` is called.
+  #[clap(skip)]
+  _prefix: String,
 
   /// Whether brute forcing the hash should be run in parallel.
   /// You may also set "git config --global gash.parallel true" as well.
   #[clap(short = "p", long = "parallel")]
-  pub parallel: bool,
+  parallel: bool,
+
+  /// This field is used to cache the computed parallel so it's not computed
+  /// each time that `.parallel()` is called.
+  #[clap(skip)]
+  _parallel: bool,
 
   /// The max distance (in seconds) gash can modify the commit times.
   /// Defaults to one hour.
   #[clap(short = "m", long = "max-variance")]
-  pub max_variance: Option<i64>,
+  max_variance: Option<i64>,
+
+  /// This field is used to cache the computed max_variance so it's not computed
+  /// each time that `.max_variance()` is called.
+  #[clap(skip)]
+  _max_variance: i64,
 
   /// Whether or not to perform a dry run. This won't create a new repository,
   /// it will just run log out the generated pattern.
@@ -26,25 +41,17 @@ struct ClapArgs {
   pub dry_run: bool,
 }
 
-/// Public interface for `ClapArgs` which parses some values.
-pub struct Args {
-  pub prefix: String,
-  pub parallel: bool,
-  pub max_variance: i64,
-  pub dry_run: bool,
-}
-
 impl Args {
   pub fn parse() -> Args {
-    let args = ClapArgs::parse();
+    let mut args = <Args as Clap>::parse();
 
-    let prefix = match args.prefix {
-      Some(prefix) => prefix,
+    args._prefix = match &args.prefix {
+      Some(prefix) => prefix.to_string(),
       None => git(&["config", "gash.default"])
         .expect("No prefix given and no value set for gash.default in git config"),
     };
 
-    let parallel = match args.parallel {
+    args._parallel = match args.parallel {
       // If set via CLI, then honour that.
       true => true,
       // Otherwise, try and read git config
@@ -54,7 +61,7 @@ impl Args {
       },
     };
 
-    let max_variance = match args.max_variance {
+    args._max_variance = match args.max_variance {
       Some(max_variance) => max_variance,
       None => git(&["config", "gash.max-variance"]).map_or_else(
         |_| 3600,
@@ -65,11 +72,18 @@ impl Args {
       ),
     };
 
-    Args {
-      prefix,
-      parallel,
-      max_variance,
-      dry_run: args.dry_run,
-    }
+    args
+  }
+
+  pub fn prefix(&self) -> String {
+    String::from(&self._prefix)
+  }
+
+  pub fn parallel(&self) -> bool {
+    self._parallel
+  }
+
+  pub fn max_variance(&self) -> i64 {
+    self._max_variance
   }
 }

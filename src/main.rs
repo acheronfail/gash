@@ -45,9 +45,11 @@ fn main() {
     let args = Args::parse();
     let commit_template = CommitTemplate::new();
 
+    println!("{:?}", args);
+
     // Print results.
     println!("dry_run:        {}", args.dry_run);
-    println!("max_variance:   {}", args.max_variance);
+    println!("max_variance:   {}", args.max_variance());
 
     let result = commit_template.brute_force_sha1(&args).expect(
         "Failed to brute force hash! Try increasing the variance with the --max-variance flag.",
