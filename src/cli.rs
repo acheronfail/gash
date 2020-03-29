@@ -9,6 +9,7 @@ pub struct Args {
   pub prefix: Option<String>,
 
   /// Whether brute forcing the hash should be run in parallel.
+  /// You may also set "git config --global gash.parallel true" as well.
   #[clap(short = "p", long = "parallel")]
   pub parallel: bool,
 
