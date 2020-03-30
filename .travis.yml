@@ -40,6 +40,11 @@ matrix:
 
 sudo: required
 
+addons:
+  homebrew:
+    packages:
+      - jq
+
 before_install:
   - ci/before_install.sh
 
