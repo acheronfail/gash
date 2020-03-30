@@ -2,6 +2,10 @@
 
 ## Installation
 
+#### Precompiled binaries
+
+See the [releases] page for pre-compiled binaries.
+
 #### From Source (via Cargo)
 
 Until `clap v3` is published, you'll have to install this package locally.
