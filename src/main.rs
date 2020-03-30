@@ -6,10 +6,12 @@ use std::process::Command;
 mod cli;
 mod commit;
 mod spiral;
+mod time;
 
 use cli::Args;
 use commit::CommitTemplate;
 use spiral::Spiral;
+use time::TimeDelta;
 
 fn git_sha1<S: AsRef<str>>(temp_file: S) -> String {
     let output = Command::new("git")
@@ -60,8 +62,14 @@ fn main() {
     );
 
     println!("sha1:           {}", &result.sha1);
-    println!("author_diff:    {}s", result.author_timestamp_delta);
-    println!("committer_diff: {}s", result.committer_timestamp_delta);
+    println!(
+        "author_diff:    {}",
+        TimeDelta(result.author_timestamp_delta)
+    );
+    println!(
+        "committer_diff: {}",
+        TimeDelta(result.committer_timestamp_delta)
+    );
 
     // Write out patched commit.
     let temp_file = "/tmp/gash";
