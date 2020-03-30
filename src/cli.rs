@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 
+use clap::AppSettings::ColoredHelp;
 use clap::Clap;
 use clap::{crate_authors, crate_version};
 
 #[derive(Clap, Debug)]
-#[clap(version = crate_version!(), author = crate_authors!())]
+#[clap(version = crate_version!(), author = crate_authors!(), global_setting(ColoredHelp))]
 pub struct Args {
   /// A hex string which is the desired prefix of the hash. If this is not
   /// provided then it defaults to "git config --global gash.default".

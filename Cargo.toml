@@ -2,7 +2,7 @@
 name = "gash"
 description = "Brute force your git hash!"
 version = "0.3.0"
-authors = ["acheronfail <acheronfail@gmail.com>"]
+authors = ["Callum Oz <acheronfail@gmail.com>"]
 edition = "2018"
 readme = "README.md"
 license = "Unlicense OR MIT"
