@@ -10,8 +10,10 @@ use clap::{crate_authors, crate_version};
 #[derive(Clap, Debug)]
 #[clap(version = crate_version!(), author = crate_authors!(), global_setting(ColoredHelp))]
 pub struct Args {
-  /// A hex string which is the desired prefix of the hash. If this is not
-  /// provided then it defaults to "git config --global gash.default".
+  /// A hex string which is the desired prefix of the hash. If this is not provided then it defaults
+  /// to "git config --global gash.default".
+  /// Avoid using strings greater than four characters long, since the brute-forcing time increases
+  /// exponentially.
   ///
   /// Pass the special value "hook" to install a git hook in the current repository.
   prefix: Option<String>,
@@ -22,7 +24,7 @@ pub struct Args {
   _prefix: String,
 
   /// Whether brute forcing the hash should be run in parallel.
-  /// You may also set "git config --global gash.parallel true" as well.
+  /// Alternatively you may set "git config --global gash.parallel true".
   #[clap(short = "p", long = "parallel")]
   parallel: bool,
 
@@ -42,6 +44,7 @@ pub struct Args {
   _max_variance: i64,
 
   /// Whether or not to print progress. Note that this has a negative performance impact.
+  /// Alternatively you may set "git config --global gash.progress true".
   #[clap(short = "P", long = "progress")]
   progress: bool,
 
@@ -51,6 +54,7 @@ pub struct Args {
   _progress: bool,
 
   /// Color text output when printing to the terminal.
+  /// Alternatively you may set "git config --global gash.color true".
   #[clap(short = "c", long = "color")]
   color: bool,
 
@@ -59,8 +63,8 @@ pub struct Args {
   #[clap(skip)]
   _color: bool,
 
-  /// Whether or not to perform a dry run. This won't create a new repository,
-  /// it will just run log out the generated pattern.
+  /// Whether or not to perform a dry run. This won't patch the latest commit,
+  /// it will just print the hash.
   #[clap(short = "d", long = "dry-run")]
   pub dry_run: bool,
 
