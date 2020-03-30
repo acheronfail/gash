@@ -1,7 +1,7 @@
 [package]
 name = "gash"
 description = "Brute force your git hash!"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["acheronfail <acheronfail@gmail.com>"]
 edition = "2018"
 readme = "README.md"
