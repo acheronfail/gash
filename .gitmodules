@@ -1,0 +1,3 @@
+[submodule "ci"]
+	path = ci
+	url = git@github.com:acheronfail/travis-rs.git
