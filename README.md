@@ -53,3 +53,5 @@ git config --global gash.parallel "true"
 # Now, this is equivalent to running: `gash --parallel "babe"`
 gash
 ```
+
+[releases]: https://github.com/acheronfail/gash/releases
