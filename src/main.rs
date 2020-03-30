@@ -41,14 +41,18 @@ where
     }
 }
 
+fn git_config(name: &str) -> Option<String> {
+    git(&["config", name]).ok()
+}
+
 fn main() {
-    let args = Args::parse();
+    let args = Args::parse(git_config);
     let commit_template = CommitTemplate::new();
 
-    println!("{:?}", args);
-
     // Print results.
-    println!("dry_run:        {}", args.dry_run);
+    if args.dry_run {
+        println!("dry_run:        {}", args.dry_run);
+    }
     println!("max_variance:   {}", args.max_variance());
 
     let result = commit_template.brute_force_sha1(&args).expect(
