@@ -116,7 +116,7 @@ impl CommitTemplate {
     let prefix = &args.prefix();
     let mapper = |(da, dc)| {
       // Update progress.
-      if args.progress {
+      if args.progress() {
         let mut state = state.lock().unwrap();
         state.count += 1;
 
@@ -142,8 +142,8 @@ impl CommitTemplate {
       match hash.starts_with(prefix) {
         // We found a match!
         true => {
-          // Update the state (this stops other parallel threads from logging after).
-          if args.progress {
+          if args.progress() {
+            // Update the state (this stops other parallel threads from logging after we've already found something).
             let mut state = state.lock().unwrap();
             state.found = true;
 

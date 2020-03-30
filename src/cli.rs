@@ -10,7 +10,7 @@ pub struct Args {
   /// provided then it defaults to "git config --global gash.default".
   prefix: Option<String>,
 
-  /// This field is used to cache the computed prefix so it's not computed each
+  /// This field is used to cache the computed prefix so it's not re-computed each
   /// time that `.prefix()` is called.
   #[clap(skip)]
   _prefix: String,
@@ -20,7 +20,7 @@ pub struct Args {
   #[clap(short = "p", long = "parallel")]
   parallel: bool,
 
-  /// This field is used to cache the computed parallel so it's not computed
+  /// This field is used to cache the computed parallel so it's not re-computed
   /// each time that `.parallel()` is called.
   #[clap(skip)]
   _parallel: bool,
@@ -30,14 +30,19 @@ pub struct Args {
   #[clap(short = "m", long = "max-variance")]
   max_variance: Option<i64>,
 
-  /// This field is used to cache the computed max_variance so it's not computed
+  /// This field is used to cache the computed max_variance so it's not re-computed
   /// each time that `.max_variance()` is called.
   #[clap(skip)]
   _max_variance: i64,
 
   /// Whether or not to print progress. Note that this has a negative performance impact.
   #[clap(short = "P", long = "progress")]
-  pub progress: bool,
+  progress: bool,
+
+  /// This field is used to cache the computed progress so it's not re-computed
+  /// each time that `.progress()` is called.
+  #[clap(skip)]
+  _progress: bool,
 
   /// Whether or not to perform a dry run. This won't create a new repository,
   /// it will just run log out the generated pattern.
@@ -46,12 +51,12 @@ pub struct Args {
 }
 
 impl Args {
-  pub fn parse(git: fn(name: &str) -> Option<String>) -> Args {
+  pub fn parse(git_config: fn(name: &str) -> Option<String>) -> Args {
     let mut args = <Args as Clap>::parse();
 
     args._prefix = match &args.prefix {
       Some(prefix) => prefix.to_string(),
-      None => git("gash.default")
+      None => git_config("gash.default")
         .expect("No prefix given and no value set for gash.default in git config"),
     };
 
@@ -63,10 +68,16 @@ impl Args {
     }
 
     args._parallel = match args.parallel {
-      // If set via CLI, then honour that.
       true => true,
-      // Otherwise, try and read git config
-      false => match git("gash.parallel") {
+      false => match git_config("gash.parallel") {
+        Some(s) => s == "true",
+        None => false,
+      },
+    };
+
+    args._progress = match args.progress {
+      true => true,
+      false => match git_config("gash.progress") {
         Some(s) => s == "true",
         None => false,
       },
@@ -74,7 +85,7 @@ impl Args {
 
     args._max_variance = match args.max_variance {
       Some(max_variance) => max_variance,
-      None => git("gash.max-variance").map_or_else(
+      None => git_config("gash.max-variance").map_or_else(
         || 3600,
         |s| {
           s.parse::<i64>()
@@ -92,6 +103,10 @@ impl Args {
 
   pub fn parallel(&self) -> bool {
     self._parallel
+  }
+
+  pub fn progress(&self) -> bool {
+    self._progress
   }
 
   pub fn max_variance(&self) -> i64 {
