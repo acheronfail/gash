@@ -7,6 +7,7 @@ use rayon::prelude::*;
 use regex::{Captures, Regex};
 use sha1::{Digest, Sha1};
 
+use crate::time::TimeDelta;
 use crate::{Args, Spiral};
 
 const COMMIT_MESSAGE_RE: &str =
@@ -56,9 +57,9 @@ pub struct BruteForceResult {
   /// The commit that created the hash.
   pub commit_contents: String,
   /// How much the author timestamp has been changed.
-  pub author_timestamp_delta: i64,
+  pub author_delta: TimeDelta,
   /// How much the committer timestamp has been changed.
-  pub committer_timestamp_delta: i64,
+  pub committer_delta: TimeDelta,
 }
 
 /// A struct which contains the commit message, and utilities to patch the message and hash it.
@@ -114,6 +115,7 @@ impl CommitTemplate {
     let state = Arc::new(Mutex::new(BruteForceState::new()));
 
     let prefix = &args.prefix();
+    let padding = if args.verbosity > 0 { "        " } else { "" };
     let mapper = |(da, dc)| {
       // Update progress.
       if args.progress() {
@@ -125,7 +127,7 @@ impl CommitTemplate {
         }
 
         if state.count % 1000 == 0 {
-          print!("\rhashes:         {}k", state.count / 1000);
+          print!("\r{}hashes {}k", padding, state.count / 1000);
           io::stdout().flush().unwrap();
         }
       }
@@ -155,8 +157,8 @@ impl CommitTemplate {
           Some(BruteForceResult {
             sha1: hash,
             commit_contents: new_commit,
-            author_timestamp_delta: da,
-            committer_timestamp_delta: dc,
+            author_delta: TimeDelta(da),
+            committer_delta: TimeDelta(dc),
           })
         }
 
