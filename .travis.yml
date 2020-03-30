@@ -1,0 +1,110 @@
+env:
+  global:
+    # Used in the deploy steps below.
+    - PROJECT_NAME="gash"
+    # Default target on travis-ci.
+    # Used as conditional check in the install stage
+    - HOST="x86_64-unknown-linux-gnu"
+
+language: rust
+cache: cargo
+matrix:
+  include:
+    # Stable channel.
+    - os: linux
+      rust: stable
+      env: TARGET=x86_64-unknown-linux-gnu
+    - os: linux
+      rust: stable
+      env: TARGET=x86_64-unknown-linux-musl
+    - os: linux
+      rust: stable
+      env: TARGET=i686-unknown-linux-gnu
+    - os: linux
+      rust: stable
+      env: TARGET=i686-unknown-linux-musl
+    - os: linux
+      rust: stable
+      env:
+        - TARGET=arm-unknown-linux-gnueabihf
+        - CC_arm_unknown_linux_gnueabihf=/usr/bin/arm-linux-gnueabihf-gcc-4.8
+        - CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc-4.8
+    - os: linux
+      rust: stable
+      env:
+        - TARGET=arm-unknown-linux-musleabihf
+        - CARGO_TARGET_ARM_UNKNOWN_LINUX_MUSLEABIHF_LINKER=arm-linux-gnueabihf-gcc-4.8
+
+    # Minimum Rust supported channel.
+    - os: linux
+      rust: 1.31.0
+      env: TARGET=x86_64-unknown-linux-gnu
+    - os: linux
+      rust: 1.31.0
+      env: TARGET=x86_64-unknown-linux-musl
+    - os: linux
+      rust: 1.31.0
+      env: TARGET=i686-unknown-linux-gnu
+    - os: linux
+      rust: 1.31.0
+      env: TARGET=i686-unknown-linux-musl
+
+sudo: required
+
+before_install:
+  - ci/before_install.sh
+
+install:
+  # prevent target re-add error from rustup
+  - if [[ $TRAVIS_OS_NAME = linux && $HOST != $TARGET ]]; then rustup target add $TARGET; fi
+
+script:
+  - ci/script.sh
+
+before_deploy:
+  - bash ci/before_deploy.sh
+
+_deploy_on: &deploy_on
+  # deploy only if we push a tag
+  tags: true
+  # deploy only on stable channel that has TARGET env variable sets
+  condition: $TRAVIS_RUST_VERSION = stable && $TARGET != ""
+
+deploy:
+  # TODO: wait for clap v3 and then deploy to crates.io
+  # # Deploy to crates.
+  # - provider: cargo
+  #   # NOTE updating the `token.secure`
+  #   # - go to: https://crates.io/me
+  #   # - generate new token
+  #   # - encrypt it using: `travis encrypt API_KEY_HERE`
+  #   # - paste the output below
+  #   token:
+  #     secure: ppZgvB+JmWOVKnxyPlWM9iG8ZFHK57RuVJDjG1pboWs35SK4GqOmootvBBF/WI2UbJIUS54cdMgp0fGAlPaOILNHT+XUK6sVM5W671Ul+5tNBcB9ycX4schiZxv+TGgnUO3VycazZ/6I4SsUwKsIRsQj0Eikjd5bannsCDpBCfR7EuSk28JxYePSQ/oLxhsITIFrb60thiJxXqwkEHG6XoG/LBhAy6yXYNt+x4VtQ8H5l02YCLQcLoReQRwwbUCoVaGdgZsh8fa07HhQor0U3SUMzBihoHQZDvEuF3QbaE9EWs8tUOasoLbNTaCqk21mjqpuE9DCHCLTMevUb0n0whD7AtI4Qh/ejkJsd9YRTnD6M7VUbxPND8vj65u6VwOd2yqkSZlHjptvZtzrzHmOrib/PNvlAJlzDIdUMxwc3SjhwEUaztgFqIfjd1gkNIRtIioGPX+CSgOg9CiHKM0cLU5yR+0WuUmLR5iAYhWsRdRZRZbnGcoLg5r21bVRxk77FogKDM2cEl0YBYnnDcZybXCGd5Qd6fLgB70zU46yTIszrqTRmAfKGbEUMlc6f4mWwQm5NPvHiXtIXZ6eSA1HycGxyrkbgUQhSvgYt+DKNMGMHLkArdRzF+UCbzplr2SbJHC+DuF7avFkKwR5zjJIyYVSsbAZ4LspZouoaAiN3Fo=
+  #   on: *deploy_on
+
+  # Deploy to GitHub releases.
+  - provider: releases
+    # NOTE updating the `api_key.secure`
+    # - go to: https://github.com/settings/tokens/new
+    # - generate new token using `public_repo` scope
+    # - encrypt it using: `travis encrypt API_KEY_HERE`
+    # - paste the output below
+    api_key:
+      secure: Kb0tG7zNzSytGon0d7ZvWcso3V3shuoTVd6I7mv+jgCiZl2NtxL4P8KiHS+EnsJows1NgweZ/tuvfUHKlmdWXNHqpwJhorYRkot3o8cFfuwkQgBWH/gbyAEiq6y/XLtxsWQAVofIq8CEKzShdRb4veoBLlls9BVfVufZayOrSnEXorhTsBECrr7KFGEXnYRM3yTQZcVUw+muFrW1QkEWuzQoUINiuU4SYstrtECf2d31+Bof7NywBFPPJ02KTlPbMJltGeqP4Lj/pkE3QxhxRfbJAkshFH9kvw4moNvhe0kTI2IRmn0LasefsQX2IkCD9tF0GF3E1r0+UVUeD9uvAMa2IuGHy/QdX0OxV6CZMgjz1cKBaWW8SElUbgIdnV3abnOPFxfniI4xgPd+pYsMdeV0j326+vCJ1YXHcmkSgKqA4JMhfVnnEOwFQrArBkX7XQFixk1wbCegqcTuMf+q/V0c3euglB1sGsWQlW8UDkSOQwYEssZyKXNUnhYonotT4SVs1U/2LO3RtcnJe1uMsz5G/QTmiH7pQjIIQ2gOHeYowYJXMM7qBSO9n1M5sf15PxR+d+q2OAeXx+kOChtpOxZFhJaxVa2N9gLXQ3Mq8vqzyW+Bmbz7Yb0bQZvppCGC1tU9GpF5mwLEHcizu+Nn9q54bF6/o4IHNQzv8KDqJOI=
+    # for uploading multiple files
+    file_glob: true
+    # NOTE explanation on each env variable
+    # - PROJECT_NAME: name of the project, set on the `env.global` above
+    # - TRAVIS_TAG: tag name that the build is being deployed for, usually the version number
+    # - TARGET: target triple of the build
+    file:
+      - $PROJECT_NAME-$TRAVIS_TAG-$TARGET.*
+      - $PROJECT_NAME*.deb
+    # don't delete artifacts from previous stage
+    skip_cleanup: true
+    on: *deploy_on
+
+notifications:
+  email:
+    on_success: never
