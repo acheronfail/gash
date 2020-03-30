@@ -1,9 +1,9 @@
 use std::process::Command;
 
-use crypto::digest::Digest;
-use crypto::sha1::Sha1;
+use hex;
 use rayon::prelude::*;
 use regex::{Captures, Regex};
+use sha1::{Digest, Sha1};
 
 use crate::{Args, Spiral};
 
@@ -93,8 +93,8 @@ impl CommitTemplate {
       let new_commit = self.with_diff(da, dc);
 
       let mut hasher = Sha1::new();
-      hasher.input_str(&format!("commit {}\0{}", new_commit.len(), new_commit));
-      let hash = hasher.result_str();
+      hasher.input(&format!("commit {}\0{}", new_commit.len(), new_commit));
+      let hash = hex::encode(hasher.result());
       match hash.starts_with(prefix) {
         true => Some(BruteForceResult {
           sha1: hash,
