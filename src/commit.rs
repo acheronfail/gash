@@ -1,4 +1,6 @@
+use std::io::{self, Write};
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 
 use hex;
 use rayon::prelude::*;
@@ -32,13 +34,34 @@ impl Match {
   }
 }
 
+/// Simple struct used to count iterations and track hash progress.
+struct BruteForceState {
+  count: usize,
+  found: bool,
+}
+
+impl BruteForceState {
+  fn new() -> BruteForceState {
+    BruteForceState {
+      count: 0,
+      found: false,
+    }
+  }
+}
+
+/// Simple struct to return the results of our brute force search.
 pub struct BruteForceResult {
+  /// The new brute forced hash.
   pub sha1: String,
+  /// The commit that created the hash.
   pub commit_contents: String,
+  /// How much the author timestamp has been changed.
   pub author_timestamp_delta: i64,
+  /// How much the committer timestamp has been changed.
   pub committer_timestamp_delta: i64,
 }
 
+/// A struct which contains the commit message, and utilities to patch the message and hash it.
 pub struct CommitTemplate {
   pub commit_contents: String,
   author_match: Match,
@@ -88,20 +111,56 @@ impl CommitTemplate {
   }
 
   pub fn brute_force_sha1(&self, args: &Args) -> Option<BruteForceResult> {
+    let state = Arc::new(Mutex::new(BruteForceState::new()));
+
     let prefix = &args.prefix();
     let mapper = |(da, dc)| {
+      // Update progress.
+      if args.progress {
+        let mut state = state.lock().unwrap();
+        state.count += 1;
+
+        if state.found {
+          return None;
+        }
+
+        if state.count % 1000 == 0 {
+          print!("\rhashes:         {}k", state.count / 1000);
+          io::stdout().flush().unwrap();
+        }
+      }
+
+      // Patch the commit.
       let new_commit = self.with_diff(da, dc);
 
+      // Hash the commit.
       let mut hasher = Sha1::new();
       hasher.input(&format!("commit {}\0{}", new_commit.len(), new_commit));
       let hash = hex::encode(hasher.result());
+
+      // Check if the hash starts with our prefix.
       match hash.starts_with(prefix) {
-        true => Some(BruteForceResult {
-          sha1: hash,
-          commit_contents: new_commit,
-          author_timestamp_delta: da,
-          committer_timestamp_delta: dc,
-        }),
+        // We found a match!
+        true => {
+          // Update the state (this stops other parallel threads from logging after).
+          if args.progress {
+            let mut state = state.lock().unwrap();
+            state.found = true;
+
+            // Move the terminal cursor to the next line.
+            println!("");
+          }
+
+          // Return our result.
+          Some(BruteForceResult {
+            sha1: hash,
+            commit_contents: new_commit,
+            author_timestamp_delta: da,
+            committer_timestamp_delta: dc,
+          })
+        }
+
+        // Keep looking.
         false => None,
       }
     };

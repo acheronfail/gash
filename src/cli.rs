@@ -35,6 +35,10 @@ pub struct Args {
   #[clap(skip)]
   _max_variance: i64,
 
+  /// Whether or not to print progress. Note that this has a negative performance impact.
+  #[clap(short = "P", long = "progress")]
+  pub progress: bool,
+
   /// Whether or not to perform a dry run. This won't create a new repository,
   /// it will just run log out the generated pattern.
   #[clap(short = "d", long = "dry-run")]

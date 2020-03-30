@@ -56,6 +56,8 @@ fn main() {
         println!("dry_run:        {}", args.dry_run);
     }
     println!("max_variance:   {}", args.max_variance());
+    println!("parallel:       {}", args.parallel());
+    println!("prefix:         {}", args.prefix());
 
     let result = commit_template.brute_force_sha1(&args).expect(
         "Failed to brute force hash! Try increasing the variance with the --max-variance flag.",
