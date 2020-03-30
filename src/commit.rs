@@ -88,7 +88,7 @@ impl CommitTemplate {
   }
 
   pub fn brute_force_sha1(&self, args: &Args) -> Option<BruteForceResult> {
-    let prefix = &args.prefix;
+    let prefix = &args.prefix();
     let mapper = |(da, dc)| {
       let new_commit = self.with_diff(da, dc);
 
@@ -106,8 +106,8 @@ impl CommitTemplate {
       }
     };
 
-    let spiral = Spiral::new(args.max_variance);
-    if args.parallel {
+    let spiral = Spiral::new(args.max_variance());
+    if args.parallel() {
       spiral.par_iter().find_map_any(mapper)
     } else {
       spiral.iter().find_map(mapper)

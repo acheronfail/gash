@@ -77,6 +77,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_generate"
+version = "3.0.0-beta.1"
+source = "git+https://github.com/clap-rs/clap#37889c661134e8286102f7d2ab3267965d010403"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -140,6 +148,7 @@ name = "gash"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "clap_generate",
  "rayon",
  "regex",
  "rust-crypto",
