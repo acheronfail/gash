@@ -47,7 +47,12 @@ pub struct Args {
 
   /// Color text output when printing to the terminal.
   #[clap(short = "c", long = "color")]
-  pub color: bool,
+  color: bool,
+
+  /// This field is used to cache the computed color so it's not re-computed
+  /// each time that `.color()` is called.
+  #[clap(skip)]
+  _color: bool,
 
   /// Whether or not to perform a dry run. This won't create a new repository,
   /// it will just run log out the generated pattern.
@@ -92,6 +97,14 @@ impl Args {
       },
     };
 
+    args._color = match args.color {
+      true => true,
+      false => match git_config("gash.color") {
+        Some(s) => s == "true",
+        None => false,
+      },
+    };
+
     args._max_variance = match args.max_variance {
       Some(max_variance) => max_variance,
       None => git_config("gash.max-variance").map_or_else(
@@ -116,6 +129,10 @@ impl Args {
 
   pub fn progress(&self) -> bool {
     self._progress
+  }
+
+  pub fn color(&self) -> bool {
+    self._color
   }
 
   pub fn max_variance(&self) -> i64 {

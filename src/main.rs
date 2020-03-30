@@ -53,7 +53,7 @@ fn main() {
     let args = Args::parse(git_config);
     let commit_template = CommitTemplate::new();
 
-    let mut stdout = StandardStream::stdout(match args.color {
+    let mut stdout = StandardStream::stdout(match args.color() {
         true => ColorChoice::Auto,
         false => ColorChoice::Never,
     });
@@ -128,7 +128,7 @@ fn main() {
     } else {
         c!(
             Some(Color::Yellow),
-            "Patching last commit to include new hash...\n"
+            "Patching last commit to include new hash... "
         );
 
         // Soft reset to the previous commit.
@@ -147,6 +147,7 @@ fn main() {
             process::exit(1);
         }
 
-        c!(Some(Color::Green), "Success!");
+        c!(Some(Color::Green), "Success!\n");
+        c!(None);
     }
 }
