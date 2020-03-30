@@ -1,4 +1,7 @@
 use std::collections::HashSet;
+use std::fs::{set_permissions, OpenOptions};
+use std::io::Write;
+use std::process;
 
 use clap::AppSettings::ColoredHelp;
 use clap::Clap;
@@ -9,6 +12,8 @@ use clap::{crate_authors, crate_version};
 pub struct Args {
   /// A hex string which is the desired prefix of the hash. If this is not
   /// provided then it defaults to "git config --global gash.default".
+  ///
+  /// Pass the special value "hook" to install a git hook in the current repository.
   prefix: Option<String>,
 
   /// This field is used to cache the computed prefix so it's not re-computed each
@@ -74,11 +79,21 @@ impl Args {
         .expect("No prefix given and no value set for gash.default in git config"),
     };
 
+    // Validate the prefix.
     if !Args::validate_hex(&args._prefix) {
-      panic!(
-        "The prefix must only contain hex characters! Got: {}",
-        &args._prefix
-      );
+      match &args._prefix[..] {
+        "hook" => {
+          create_git_hook().expect("Failed to create git hook");
+          process::exit(0);
+        }
+        _ => {
+          println!(
+            "The prefix must only contain hex characters! Got: {}",
+            &args._prefix
+          );
+          process::exit(1);
+        }
+      }
     }
 
     args._parallel = match args.parallel {
@@ -166,4 +181,30 @@ impl Args {
 
     return true;
   }
+}
+
+fn create_git_hook() -> std::io::Result<()> {
+  let post_commit_hook = ".git/hooks/post-commit";
+  println!("Adding git hook to {}", post_commit_hook);
+
+  // Create file.
+  let mut file = OpenOptions::new()
+    .create(true)
+    .write(true)
+    .truncate(true)
+    .open(post_commit_hook)?;
+
+  // Make it executable on unix.
+  if cfg!(unix) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut perms = file.metadata()?.permissions();
+    perms.set_mode(0o755);
+    set_permissions(post_commit_hook, perms)?;
+  }
+
+  // Write the hook.
+  file.write_fmt(format_args!("{}", "#!/bin/bash\ngash"))?;
+
+  Ok(())
 }
