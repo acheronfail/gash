@@ -1,7 +1,7 @@
+use std::collections::HashSet;
+
 use clap::Clap;
 use clap::{crate_authors, crate_version};
-
-use crate::git;
 
 #[derive(Clap, Debug)]
 #[clap(version = crate_version!(), author = crate_authors!())]
@@ -42,29 +42,36 @@ pub struct Args {
 }
 
 impl Args {
-  pub fn parse() -> Args {
+  pub fn parse(git: fn(name: &str) -> Option<String>) -> Args {
     let mut args = <Args as Clap>::parse();
 
     args._prefix = match &args.prefix {
       Some(prefix) => prefix.to_string(),
-      None => git(&["config", "gash.default"])
+      None => git("gash.default")
         .expect("No prefix given and no value set for gash.default in git config"),
     };
+
+    if !Args::validate_hex(&args._prefix) {
+      panic!(
+        "The prefix must only contain hex characters! Got: {}",
+        &args._prefix
+      );
+    }
 
     args._parallel = match args.parallel {
       // If set via CLI, then honour that.
       true => true,
       // Otherwise, try and read git config
-      false => match git(&["config", "gash.parallel"]) {
-        Ok(s) => s == "true",
-        _ => false,
+      false => match git("gash.parallel") {
+        Some(s) => s == "true",
+        None => false,
       },
     };
 
     args._max_variance = match args.max_variance {
       Some(max_variance) => max_variance,
-      None => git(&["config", "gash.max-variance"]).map_or_else(
-        |_| 3600,
+      None => git("gash.max-variance").map_or_else(
+        || 3600,
         |s| {
           s.parse::<i64>()
             .expect("Failed to parse gash.max-variance as i64!")
@@ -85,5 +92,33 @@ impl Args {
 
   pub fn max_variance(&self) -> i64 {
     self._max_variance
+  }
+
+  fn validate_hex(s: &str) -> bool {
+    let mut valid_chars = HashSet::new();
+    valid_chars.insert('0');
+    valid_chars.insert('1');
+    valid_chars.insert('2');
+    valid_chars.insert('3');
+    valid_chars.insert('4');
+    valid_chars.insert('5');
+    valid_chars.insert('6');
+    valid_chars.insert('7');
+    valid_chars.insert('8');
+    valid_chars.insert('9');
+    valid_chars.insert('a');
+    valid_chars.insert('b');
+    valid_chars.insert('c');
+    valid_chars.insert('d');
+    valid_chars.insert('e');
+    valid_chars.insert('f');
+
+    for c in s.chars() {
+      if !valid_chars.contains(&c) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }
