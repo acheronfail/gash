@@ -45,10 +45,18 @@ pub struct Args {
   #[clap(skip)]
   _progress: bool,
 
+  /// Color text output when printing to the terminal.
+  #[clap(short = "c", long = "color")]
+  pub color: bool,
+
   /// Whether or not to perform a dry run. This won't create a new repository,
   /// it will just run log out the generated pattern.
   #[clap(short = "d", long = "dry-run")]
   pub dry_run: bool,
+
+  /// Output more information.
+  #[clap(short = "v", long = "verbose", parse(from_occurrences))]
+  pub verbosity: usize,
 }
 
 impl Args {

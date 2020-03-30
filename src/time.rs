@@ -16,7 +16,7 @@ impl Display for TimeDelta {
 #[cfg(test)]
 mod test {
 
-  use crate::TimeDelta;
+  use crate::time::TimeDelta;
 
   #[test]
   fn it_works() {
