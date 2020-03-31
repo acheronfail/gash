@@ -13,28 +13,6 @@ use crate::{Args, Spiral};
 const COMMIT_MESSAGE_RE: &str =
   r"(?m)^(?P<prefix>(?:author|committer).*> )(?P<timestamp>\d+)(?P<suffix>.*)$";
 
-struct Match {
-  pub source: String,
-  pub prefix: String,
-  pub suffix: String,
-  pub timestamp: i64,
-}
-
-impl Match {
-  pub fn new(capture: &Captures) -> Match {
-    Match {
-      source: capture[0].to_string(),
-      prefix: capture["prefix"].to_string(),
-      suffix: capture["suffix"].to_string(),
-      timestamp: capture["timestamp"].parse::<i64>().unwrap(),
-    }
-  }
-
-  pub fn with_timestamp(&self, timestamp: i64) -> String {
-    format!("{}{}{}", self.prefix, timestamp, self.suffix)
-  }
-}
-
 /// Simple struct used to count iterations and track hash progress.
 struct BruteForceState {
   count: usize,
@@ -65,8 +43,11 @@ pub struct BruteForceResult {
 /// A struct which contains the commit message, and utilities to patch the message and hash it.
 pub struct CommitTemplate {
   pub commit_contents: String,
-  author_match: Match,
-  committer_match: Match,
+  a_timestamp: i64,
+  c_timestamp: i64,
+
+  a_pos: (usize, usize),
+  c_pos: (usize, usize),
 }
 
 impl CommitTemplate {
@@ -83,32 +64,40 @@ impl CommitTemplate {
     // Extract the author and committer timestamps.
     let commit_contents = String::from_utf8_lossy(&output.stdout).to_string();
     let re = Regex::new(COMMIT_MESSAGE_RE).unwrap();
+
     let captures = re.captures_iter(&commit_contents).collect::<Vec<_>>();
+    let timestamp_and_pos = |c: &Captures| {
+      let m = c.get(2).unwrap();
+      (
+        m.as_str()
+          .parse::<i64>()
+          .expect("Failed to parse timestamp"),
+        (m.start(), m.end()),
+      )
+    };
+
+    let (a_timestamp, a_pos) = timestamp_and_pos(&captures[0]);
+    let (c_timestamp, c_pos) = timestamp_and_pos(&captures[1]);
 
     CommitTemplate {
-      author_match: Match::new(&captures[0]),
-      committer_match: Match::new(&captures[1]),
+      a_pos,
+      c_pos,
+      a_timestamp,
+      c_timestamp,
       commit_contents,
     }
   }
 
-  /// Format the string as a template string.
-  pub fn with_diff(&self, author_diff: i64, committer_diff: i64) -> String {
-    self
-      .commit_contents
-      .replace(
-        &self.author_match.source,
-        &self
-          .author_match
-          .with_timestamp(self.author_match.timestamp + author_diff),
-      )
-      .replace(
-        &self.committer_match.source,
-        &self
-          .committer_match
-          .with_timestamp(self.committer_match.timestamp + committer_diff),
-      )
-      .to_string()
+  /// Build a new commit with the patched timestamps.
+  pub fn with_diff(&self, da: i64, cd: i64) -> String {
+    let mut text = String::with_capacity(self.commit_contents.len());
+    text.push_str(&self.commit_contents[..self.a_pos.0]);
+    text.push_str(&format!("{}", self.a_timestamp + da));
+    text.push_str(&self.commit_contents[self.a_pos.1..self.c_pos.0]);
+    text.push_str(&format!("{}", self.c_timestamp + cd));
+    text.push_str(&self.commit_contents[self.c_pos.1..]);
+
+    text
   }
 
   pub fn brute_force_sha1(&self, args: &Args) -> Option<BruteForceResult> {
