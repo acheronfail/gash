@@ -156,6 +156,7 @@ fn main() {
         }
 
         c!(Some(Color::Green), "Success!\n");
-        c!(None);
     }
+
+    c!(None);
 }
