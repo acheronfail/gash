@@ -14,8 +14,7 @@ impl Display for TimeDelta {
 }
 
 #[cfg(test)]
-mod test {
-
+mod tests {
   use crate::time::TimeDelta;
 
   #[test]

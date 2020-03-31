@@ -5,6 +5,7 @@ use std::process::{self, Command};
 
 mod cli;
 mod commit;
+mod hash;
 mod spiral;
 mod time;
 

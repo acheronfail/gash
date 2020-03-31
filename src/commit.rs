@@ -2,11 +2,11 @@ use std::io::{self, Write};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
-use hex;
 use rayon::prelude::*;
 use regex::{Captures, Regex};
 use sha1::{Digest, Sha1};
 
+use crate::hash::create_validator;
 use crate::time::TimeDelta;
 use crate::{Args, Spiral};
 
@@ -112,10 +112,11 @@ impl CommitTemplate {
   }
 
   pub fn brute_force_sha1(&self, args: &Args) -> Option<BruteForceResult> {
-    let state = Arc::new(Mutex::new(BruteForceState::new()));
-
     let prefix = &args.prefix();
+    let hash_is_correct = create_validator(prefix);
+
     let padding = if args.verbosity > 0 { "        " } else { "" };
+    let state = Arc::new(Mutex::new(BruteForceState::new()));
     let mapper = |(da, dc)| {
       // Update progress.
       if args.progress() {
@@ -138,10 +139,10 @@ impl CommitTemplate {
       // Hash the commit.
       let mut hasher = Sha1::new();
       hasher.input(&format!("commit {}\0{}", new_commit.len(), new_commit));
-      let hash = hex::encode(hasher.result());
 
       // Check if the hash starts with our prefix.
-      match hash.starts_with(prefix) {
+      let hash = hasher.result();
+      match hash_is_correct(hash) {
         // We found a match!
         true => {
           if args.progress() {
@@ -155,7 +156,7 @@ impl CommitTemplate {
 
           // Return our result.
           Some(BruteForceResult {
-            sha1: hash,
+            sha1: hex::encode(hash),
             commit_contents: new_commit,
             author_delta: TimeDelta(da),
             committer_delta: TimeDelta(dc),
