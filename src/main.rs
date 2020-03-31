@@ -100,6 +100,13 @@ fn main() {
     c!(Some(Color::Cyan), "{}", args.prefix());
     c!(None, "{}\n", &result.sha1[args.prefix().len()..]);
 
+    // Print out new commit.
+    if args.verbosity > 2 {
+        c!(Some(Color::Yellow), "Patched commit ---\n");
+        c!(None, "{}\n", result.commit_contents);
+        c!(Some(Color::Yellow), "------------------\n");
+    }
+
     // Write out patched commit.
     let temp_file = "/tmp/gash";
     OpenOptions::new()
