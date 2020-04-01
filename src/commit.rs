@@ -1,5 +1,4 @@
 use std::io::{self, Write};
-use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 use rayon::prelude::*;
@@ -33,69 +32,65 @@ pub struct BruteForceResult {
   /// The new brute forced hash.
   pub sha1: String,
   /// The commit that created the hash.
-  pub commit_contents: String,
+  pub patched_commit: String,
   /// How much the author timestamp has been changed.
-  pub author_delta: TimeDelta,
+  pub da: TimeDelta,
   /// How much the committer timestamp has been changed.
-  pub committer_delta: TimeDelta,
+  pub dc: TimeDelta,
+}
+
+struct Timestamp {
+  pub val: i64,
+  pub pos: (usize, usize),
+}
+
+impl Timestamp {
+  pub fn new(cap: &Captures) -> Timestamp {
+    let cap_match = cap
+      .get(2)
+      .expect("Failed to extract match from capturing group");
+
+    Timestamp {
+      val: cap_match
+        .as_str()
+        .parse::<i64>()
+        .expect("Failed to parse timestamp from commit"),
+      pos: (cap_match.start(), cap_match.end()),
+    }
+  }
 }
 
 /// A struct which contains the commit message, and utilities to patch the message and hash it.
-pub struct CommitTemplate {
-  pub commit_contents: String,
-  a_timestamp: i64,
-  c_timestamp: i64,
+pub struct Commit<'a> {
+  commit: &'a str,
 
-  a_pos: (usize, usize),
-  c_pos: (usize, usize),
+  a_timestamp: Timestamp,
+  c_timestamp: Timestamp,
 }
 
-impl CommitTemplate {
-  pub fn new() -> CommitTemplate {
-    let output = Command::new("git")
-      .args(&["cat-file", "-p", "HEAD"])
-      .output()
-      .expect("Failed to run git");
+impl<'a> Commit<'a> {
+  pub fn new(commit: &'a impl AsRef<str>) -> Commit<'a> {
+    let commit = commit.as_ref();
 
-    if !output.status.success() {
-      panic!("Failed to cat HEAD commit! {:?}", output);
-    }
-
-    // Extract the author and committer timestamps.
-    let commit_contents = String::from_utf8_lossy(&output.stdout).to_string();
+    // Extract the timestamps and their locations from the commit.
     let re = Regex::new(COMMIT_MESSAGE_RE).unwrap();
+    let captures = re.captures_iter(&commit).collect::<Vec<_>>();
 
-    let captures = re.captures_iter(&commit_contents).collect::<Vec<_>>();
-    let timestamp_and_pos = |c: &Captures| {
-      let m = c.get(2).unwrap();
-      (
-        m.as_str()
-          .parse::<i64>()
-          .expect("Failed to parse timestamp"),
-        (m.start(), m.end()),
-      )
-    };
-
-    let (a_timestamp, a_pos) = timestamp_and_pos(&captures[0]);
-    let (c_timestamp, c_pos) = timestamp_and_pos(&captures[1]);
-
-    CommitTemplate {
-      a_pos,
-      c_pos,
-      a_timestamp,
-      c_timestamp,
-      commit_contents,
+    Commit {
+      a_timestamp: Timestamp::new(&captures[0]),
+      c_timestamp: Timestamp::new(&captures[1]),
+      commit,
     }
   }
 
   /// Build a new commit with the patched timestamps.
   pub fn with_diff(&self, da: i64, cd: i64) -> String {
-    let mut text = String::with_capacity(self.commit_contents.len());
-    text.push_str(&self.commit_contents[..self.a_pos.0]);
-    text.push_str(&format!("{}", self.a_timestamp + da));
-    text.push_str(&self.commit_contents[self.a_pos.1..self.c_pos.0]);
-    text.push_str(&format!("{}", self.c_timestamp + cd));
-    text.push_str(&self.commit_contents[self.c_pos.1..]);
+    let mut text = String::with_capacity(self.commit.len());
+    text.push_str(&self.commit[..self.a_timestamp.pos.0]);
+    text.push_str(&format!("{}", self.a_timestamp.val + da));
+    text.push_str(&self.commit[self.a_timestamp.pos.1..self.c_timestamp.pos.0]);
+    text.push_str(&format!("{}", self.c_timestamp.val + cd));
+    text.push_str(&self.commit[self.c_timestamp.pos.1..]);
 
     text
   }
@@ -146,9 +141,9 @@ impl CommitTemplate {
           // Return our result.
           Some(BruteForceResult {
             sha1: hex::encode(hash),
-            commit_contents: new_commit,
-            author_delta: TimeDelta(da),
-            committer_delta: TimeDelta(dc),
+            patched_commit: new_commit,
+            da: TimeDelta(da),
+            dc: TimeDelta(dc),
           })
         }
 

@@ -1,11 +1,8 @@
-use std::collections::HashSet;
-use std::fs::{set_permissions, OpenOptions};
-use std::io::Write;
-use std::process;
-
 use clap::AppSettings::ColoredHelp;
 use clap::Clap;
 use clap::{crate_authors, crate_version};
+
+const DEFAULT_MAX_VARIANCE: i64 = 3600;
 
 #[derive(Clap, Debug)]
 #[clap(version = crate_version!(), author = crate_authors!(), global_setting(ColoredHelp))]
@@ -83,51 +80,10 @@ impl Args {
         .expect("No prefix given and no value set for gash.default in git config"),
     };
 
-    // Validate the prefix.
-    if !Args::validate_hex(&args._prefix) {
-      match &args._prefix[..] {
-        "hook" => {
-          create_git_hook().expect("Failed to create git hook");
-          process::exit(0);
-        }
-        _ => {
-          println!(
-            "The prefix must only contain hex characters! Got: {}",
-            &args._prefix
-          );
-          process::exit(1);
-        }
-      }
-    }
-
-    args._parallel = match args.parallel {
-      true => true,
-      false => match git_config("gash.parallel") {
-        Some(s) => s == "true",
-        None => false,
-      },
-    };
-
-    args._progress = match args.progress {
-      true => true,
-      false => match git_config("gash.progress") {
-        Some(s) => s == "true",
-        None => false,
-      },
-    };
-
-    args._color = match args.color {
-      true => true,
-      false => match git_config("gash.color") {
-        Some(s) => s == "true",
-        None => false,
-      },
-    };
-
     args._max_variance = match args.max_variance {
       Some(max_variance) => max_variance,
       None => git_config("gash.max-variance").map_or_else(
-        || 3600,
+        || DEFAULT_MAX_VARIANCE,
         |s| {
           s.parse::<i64>()
             .expect("Failed to parse gash.max-variance as i64!")
@@ -135,11 +91,27 @@ impl Args {
       ),
     };
 
+    let parse_bool = |val, name| match val {
+      true => true,
+      false => match git_config(&format!("gash.{}", name)) {
+        Some(s) => s == "true",
+        None => false,
+      },
+    };
+
+    args._parallel = parse_bool(args.parallel, "parallel");
+    args._progress = parse_bool(args.progress, "progress");
+    args._color = parse_bool(args.color, "color");
+
     args
   }
 
   pub fn prefix(&self) -> String {
     String::from(&self._prefix)
+  }
+
+  pub fn max_variance(&self) -> i64 {
+    self._max_variance
   }
 
   pub fn parallel(&self) -> bool {
@@ -153,62 +125,4 @@ impl Args {
   pub fn color(&self) -> bool {
     self._color
   }
-
-  pub fn max_variance(&self) -> i64 {
-    self._max_variance
-  }
-
-  fn validate_hex(s: &str) -> bool {
-    let mut valid_chars = HashSet::new();
-    valid_chars.insert('0');
-    valid_chars.insert('1');
-    valid_chars.insert('2');
-    valid_chars.insert('3');
-    valid_chars.insert('4');
-    valid_chars.insert('5');
-    valid_chars.insert('6');
-    valid_chars.insert('7');
-    valid_chars.insert('8');
-    valid_chars.insert('9');
-    valid_chars.insert('a');
-    valid_chars.insert('b');
-    valid_chars.insert('c');
-    valid_chars.insert('d');
-    valid_chars.insert('e');
-    valid_chars.insert('f');
-
-    for c in s.chars() {
-      if !valid_chars.contains(&c) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-}
-
-fn create_git_hook() -> std::io::Result<()> {
-  let post_commit_hook = ".git/hooks/post-commit";
-  println!("Adding git hook to {}", post_commit_hook);
-
-  // Create file.
-  let mut file = OpenOptions::new()
-    .create(true)
-    .write(true)
-    .truncate(true)
-    .open(post_commit_hook)?;
-
-  // Make it executable on unix.
-  if cfg!(unix) {
-    use std::os::unix::fs::PermissionsExt;
-
-    let mut perms = file.metadata()?.permissions();
-    perms.set_mode(0o755);
-    set_permissions(post_commit_hook, perms)?;
-  }
-
-  // Write the hook.
-  file.write_fmt(format_args!("{}", "#!/bin/bash\ngash"))?;
-
-  Ok(())
 }

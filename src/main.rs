@@ -1,58 +1,46 @@
-use std::ffi::OsStr;
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::process::{self, Command};
+use std::process;
+
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 mod cli;
 mod commit;
+mod git;
 mod hash;
 mod spiral;
 mod time;
 
 use cli::Args;
-use commit::CommitTemplate;
+use commit::Commit;
 use spiral::Spiral;
 
-fn git_sha1<S: AsRef<str>>(temp_file: S) -> String {
-    let output = Command::new("git")
-        .args(&["hash-object", "-t", "commit", temp_file.as_ref()])
-        .output()
-        .expect("Failed to run git");
+// Validate prefix is hex or handle special "hook" value.
+fn validate_prefix(prefix: &str) {
+    match hex::decode(&prefix) {
+        Ok(_) => {}
+        Err(_) => {
+            if prefix == "hook" {
+                git::create_post_commit_hook().expect("Failed to create git hook");
+                process::exit(0);
+            }
 
-    if !output.status.success() {
-        panic!("Failed to hash object with git: {:?}", output);
-    }
-
-    String::from_utf8_lossy(&output.stdout).trim().to_string()
-}
-
-fn git<S, I>(args: I) -> Result<String, String>
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<OsStr>,
-{
-    let output = Command::new("git")
-        .args(args)
-        .output()
-        .expect("Failed to run git");
-
-    if !output.status.success() {
-        Err(format!("Failed to run git!\n{:?}", output))
-    } else {
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+            println!(
+                "The prefix must only contain hex characters! Got: {}",
+                &prefix,
+            );
+            process::exit(1);
+        }
     }
 }
-
-fn git_config(name: &str) -> Option<String> {
-    git(&["config", name]).ok()
-}
-
-use termcolor::{Color, ColorSpec};
-use termcolor::{ColorChoice, StandardStream, WriteColor};
 
 fn main() {
-    let args = Args::parse(git_config);
-    let commit_template = CommitTemplate::new();
+    let args = Args::parse(git::config);
+    validate_prefix(&args.prefix());
+
+    let commit_str =
+        git::run(&["cat-file", "-p", "HEAD"]).expect("Failed to fetch the latest commit");
+    let commit = Commit::new(&commit_str);
 
     let mut stdout = StandardStream::stdout(match args.color() {
         true => ColorChoice::Auto,
@@ -85,14 +73,14 @@ fn main() {
         c!(None, "      parallel {}\n", args.parallel());
     }
 
-    let result = commit_template.brute_force_sha1(&args).expect(
+    let result = commit.brute_force_sha1(&args).expect(
         "Failed to brute force hash! Try increasing the variance with the --max-variance flag.",
     );
 
     // Print more result information.
     if args.verbosity > 0 {
-        c!(None, "      author ∆ {}\n", result.author_delta);
-        c!(None, "   committer ∆ {}\n", result.committer_delta);
+        c!(None, "      author ∆ {}\n", result.da);
+        c!(None, "   committer ∆ {}\n", result.dc);
     }
 
     // Print hash.
@@ -103,7 +91,7 @@ fn main() {
     // Print out new commit.
     if args.verbosity > 2 {
         c!(Some(Color::Yellow), "Patched commit ---\n");
-        c!(None, "{}\n", result.commit_contents);
+        c!(None, "{}\n", result.patched_commit);
         c!(Some(Color::Yellow), "------------------\n");
     }
 
@@ -115,11 +103,11 @@ fn main() {
         .truncate(true)
         .open(&temp_file)
         .expect("Failed to open temp file")
-        .write_fmt(format_args!("{}", result.commit_contents))
+        .write_fmt(format_args!("{}", result.patched_commit))
         .expect("Failed to write to temp file");
 
     // Get git to hash the temp file, and double check we patched it correctly.
-    let sha1_from_git = git_sha1(&temp_file);
+    let sha1_from_git = git::hash_object(&temp_file).expect("Failed to hash patched commit");
     if result.sha1 != sha1_from_git {
         c!(
             Some(Color::Red),
@@ -141,16 +129,16 @@ fn main() {
 
         // Soft reset to the previous commit.
         // If there's only one commit in the repository then this will fail, but that's okay.
-        let _ = git(&["reset", "--soft", "HEAD^"]);
+        let _ = git::run(&["reset", "--soft", "HEAD^"]);
 
         // Hash the patched commit, and write it into git's object store.
-        if git(&["hash-object", "-t", "commit", "-w", &temp_file]).is_err() {
+        if git::run(&["hash-object", "-t", "commit", "-w", &temp_file]).is_err() {
             c!(Some(Color::Red), "Failed to hash patched commit");
             process::exit(1);
         }
 
         // Reset the repository to be pointing at the patched commit.
-        if git(&["reset", "--soft", &result.sha1]).is_err() {
+        if git::run(&["reset", "--soft", &result.sha1]).is_err() {
             c!(Some(Color::Red), "Failed to reset repo to patched commit");
             process::exit(1);
         }
