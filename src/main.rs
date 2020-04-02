@@ -76,8 +76,8 @@ fn main() -> Result<()> {
     // Print settings.
     if args.verbosity > 1 {
         p!(stderr, None, "  max_variance {}\n", args.max_variance());
-        p!(stderr, None, "    parallel {}\n", args.parallel());
-        p!(stderr, None, "     version {}\n", crate_version!());
+        p!(stderr, None, "      parallel {}\n", args.parallel());
+        p!(stderr, None, "       version {}\n", crate_version!());
     }
 
     let result = commit.brute_force_sha1(&args).expect(
@@ -86,7 +86,7 @@ fn main() -> Result<()> {
 
     // Print more result information.
     if args.verbosity > 0 {
-        p!(stderr, None, "    author ∆ {}\n", result.da);
+        p!(stderr, None, "      author ∆ {}\n", result.da);
         p!(stderr, None, "   committer ∆ {}\n", result.dc);
     }
 

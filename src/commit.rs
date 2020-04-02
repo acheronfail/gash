@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 
+use chrono::{DateTime, FixedOffset};
 use rayon::prelude::*;
 use regex::{Captures, Regex};
 use sha1::{Digest, Sha1};
@@ -8,9 +9,6 @@ use sha1::{Digest, Sha1};
 use crate::hash::create_validator;
 use crate::time::TimeDelta;
 use crate::{Args, Spiral};
-
-const COMMIT_MESSAGE_RE: &str =
-    r"(?m)^(?P<prefix>(?:author|committer).*> )(?P<timestamp>\d+)(?P<suffix>.*)$";
 
 /// Simple struct used to count iterations and track hash progress.
 struct BruteForceState {
@@ -42,20 +40,22 @@ pub struct BruteForceResult {
 struct Timestamp {
     pub val: i64,
     pub pos: (usize, usize),
+    dt: DateTime<FixedOffset>,
 }
 
 impl Timestamp {
-    pub fn new(cap: &Captures) -> Timestamp {
-        let cap_match = cap
-            .get(2)
-            .expect("Failed to extract match from capturing group");
+    const COMMIT_TIMESTAMP_RE: &'static str =
+        r"(?m)^(?:(?:author|committer).*> )((?P<timestamp>\d+)\s\+\d{4})\s*$";
 
+    pub fn from_capture(cap: &Captures) -> Timestamp {
+        let timestamp_and_tz = cap.get(1).unwrap();
+        let timestamp = cap.get(2).unwrap();
+
+        let dt = DateTime::parse_from_str(timestamp_and_tz.as_str(), "%s %z").unwrap();
         Timestamp {
-            val: cap_match
-                .as_str()
-                .parse::<i64>()
-                .expect("Failed to parse timestamp from commit"),
-            pos: (cap_match.start(), cap_match.end()),
+            val: dt.timestamp(),
+            pos: (timestamp.start(), timestamp.end()),
+            dt,
         }
     }
 }
@@ -73,12 +73,12 @@ impl<'a> Commit<'a> {
         let commit = commit.as_ref();
 
         // Extract the timestamps and their locations from the commit.
-        let re = Regex::new(COMMIT_MESSAGE_RE).unwrap();
+        let re = Regex::new(Timestamp::COMMIT_TIMESTAMP_RE).unwrap();
         let captures = re.captures_iter(&commit).collect::<Vec<_>>();
 
         Commit {
-            a_timestamp: Timestamp::new(&captures[0]),
-            c_timestamp: Timestamp::new(&captures[1]),
+            a_timestamp: Timestamp::from_capture(&captures[0]),
+            c_timestamp: Timestamp::from_capture(&captures[1]),
             commit,
         }
     }
@@ -141,8 +141,8 @@ impl<'a> Commit<'a> {
                 Some(BruteForceResult {
                     sha1: hex::encode(hash),
                     patched_commit: new_commit,
-                    da: TimeDelta(da),
-                    dc: TimeDelta(dc),
+                    da: TimeDelta::new(self.a_timestamp.dt, da),
+                    dc: TimeDelta::new(self.c_timestamp.dt, dc),
                 })
             } else {
                 None
