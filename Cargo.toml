@@ -10,6 +10,10 @@ homepage = "https://github.com/acheronfail/gash"
 repository = "https://github.com/acheronfail/gash"
 build = "ci/build-clap-v3.rs"
 
+[[test]]
+name = "integration"
+path = "tests_integration/mod.rs"
+
 [dependencies]
 anyhow = "1.0.28"
 clap = { version = "3.0.0-beta.1", git = "https://github.com/clap-rs/clap" }
