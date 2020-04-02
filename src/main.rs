@@ -3,7 +3,7 @@ use std::io::Write;
 use std::process;
 
 use anyhow::Result;
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use termcolor::{ColorChoice, StandardStream, WriteColor};
 
 mod cli;
 mod commit;
