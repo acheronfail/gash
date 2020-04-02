@@ -3,6 +3,7 @@ use std::io::Write;
 use std::process;
 
 use anyhow::Result;
+use clap::crate_version;
 use termcolor::{ColorChoice, StandardStream, WriteColor};
 
 mod cli;
@@ -75,6 +76,7 @@ fn main() -> Result<()> {
     if args.verbosity > 1 {
         p!(stderr, None, "  max_variance {}\n", args.max_variance());
         p!(stderr, None, "      parallel {}\n", args.parallel());
+        p!(stderr, None, "       version {}\n", crate_version!());
     }
 
     let result = commit.brute_force_sha1(&args).expect(
