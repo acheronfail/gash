@@ -37,32 +37,42 @@ impl Display for TimeDelta {
 
 #[cfg(test)]
 mod tests {
-    use chrono::DateTime;
+    use chrono::{DateTime, FixedOffset};
 
     use crate::time::TimeDelta;
 
-    fn format_td(diff: i64) -> String {
-        let dt = DateTime::parse_from_str("1585818825 +1100", "%s %z").unwrap();
+    fn tdstr(dt: DateTime<FixedOffset>, diff: i64) -> String {
         format!("{}", TimeDelta::new(dt, diff))
     }
 
     #[test]
     fn it_works_with_positive_diffs() {
-        assert_eq!(format_td(10), "+ 0:10 (Thu, 02 Apr 2020 20:13:55 +1100)");
-        assert_eq!(format_td(60), "+ 1:00 (Thu, 02 Apr 2020 20:14:45 +1100)");
-        assert_eq!(format_td(90), "+ 1:30 (Thu, 02 Apr 2020 20:15:15 +1100)");
-        assert_eq!(format_td(1337), "+22:17 (Thu, 02 Apr 2020 20:36:02 +1100)");
-        assert_eq!(format_td(3599), "+59:59 (Thu, 02 Apr 2020 21:13:44 +1100)");
-        assert_eq!(format_td(3600), "+60:00 (Thu, 02 Apr 2020 21:13:45 +1100)");
+        let dt = DateTime::parse_from_str("1585818825 +1100", "%s %z").unwrap();
+        assert_eq!(tdstr(dt, 10), "+ 0:10 (Thu, 02 Apr 2020 20:13:55 +1100)");
+        assert_eq!(tdstr(dt, 60), "+ 1:00 (Thu, 02 Apr 2020 20:14:45 +1100)");
+        assert_eq!(tdstr(dt, 90), "+ 1:30 (Thu, 02 Apr 2020 20:15:15 +1100)");
+        assert_eq!(tdstr(dt, 1337), "+22:17 (Thu, 02 Apr 2020 20:36:02 +1100)");
+        assert_eq!(tdstr(dt, 3599), "+59:59 (Thu, 02 Apr 2020 21:13:44 +1100)");
+        assert_eq!(tdstr(dt, 3600), "+60:00 (Thu, 02 Apr 2020 21:13:45 +1100)");
     }
 
     #[test]
     fn it_works_with_negative_diffs() {
-        assert_eq!(format_td(-10), "- 0:10 (Thu, 02 Apr 2020 20:13:35 +1100)");
-        assert_eq!(format_td(-60), "- 1:00 (Thu, 02 Apr 2020 20:12:45 +1100)");
-        assert_eq!(format_td(-90), "- 1:30 (Thu, 02 Apr 2020 20:12:15 +1100)");
-        assert_eq!(format_td(-1337), "-22:17 (Thu, 02 Apr 2020 19:51:28 +1100)");
-        assert_eq!(format_td(-3599), "-59:59 (Thu, 02 Apr 2020 19:13:46 +1100)");
-        assert_eq!(format_td(-3600), "-60:00 (Thu, 02 Apr 2020 19:13:45 +1100)");
+        let dt = DateTime::parse_from_str("1585818825 +1100", "%s %z").unwrap();
+        assert_eq!(tdstr(dt, -10), "- 0:10 (Thu, 02 Apr 2020 20:13:35 +1100)");
+        assert_eq!(tdstr(dt, -60), "- 1:00 (Thu, 02 Apr 2020 20:12:45 +1100)");
+        assert_eq!(tdstr(dt, -90), "- 1:30 (Thu, 02 Apr 2020 20:12:15 +1100)");
+        assert_eq!(tdstr(dt, -1337), "-22:17 (Thu, 02 Apr 2020 19:51:28 +1100)");
+        assert_eq!(tdstr(dt, -3599), "-59:59 (Thu, 02 Apr 2020 19:13:46 +1100)");
+        assert_eq!(tdstr(dt, -3600), "-60:00 (Thu, 02 Apr 2020 19:13:45 +1100)");
+    }
+
+    #[test]
+    fn it_works_with_different_timezones() {
+        let dt = DateTime::parse_from_str("1585818825 +0000", "%s %z").unwrap();
+        assert_eq!(tdstr(dt, 10), "+ 0:10 (Thu, 02 Apr 2020 09:13:55 +0000)");
+
+        let dt = DateTime::parse_from_str("1585818825 -0500", "%s %z").unwrap();
+        assert_eq!(tdstr(dt, 10), "+ 0:10 (Thu, 02 Apr 2020 04:13:55 -0500)");
     }
 }
