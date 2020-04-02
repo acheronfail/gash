@@ -41,17 +41,25 @@ fn main() -> Result<()> {
     let prefix = args.prefix();
     validate_prefix(&prefix);
 
-    let mut s = StandardStream::stdout(match args.color() {
-        true => ColorChoice::Auto,
-        false => ColorChoice::Never,
-    });
+    // Initialse output handles.
+    let (mut stdout, mut stderr) = {
+        let choice = match args.color() {
+            true => ColorChoice::Auto,
+            false => ColorChoice::Never,
+        };
+
+        (
+            StandardStream::stdout(choice),
+            StandardStream::stderr(choice),
+        )
+    };
 
     // Check if the hash doesn't already start with the prefix.
     let curr_hash = git::run(&["rev-parse", "HEAD"])?;
     if !args.force && curr_hash.starts_with(&prefix) {
-        p!(s, Green, "Nothing to do, current hash: ");
-        p!(s, Cyan, "{}", prefix);
-        p!(s, None, "{}\n", &curr_hash[prefix.len()..]);
+        p!(stdout, Green, "Nothing to do, current hash: ");
+        p!(stdout, Cyan, "{}", prefix);
+        p!(stdout, None, "{}\n", &curr_hash[prefix.len()..]);
         return Ok(());
     }
 
@@ -59,14 +67,14 @@ fn main() -> Result<()> {
     let commit = Commit::new(&commit_str);
 
     // Print results.
-    p!(s, Yellow, "Searching for hash with prefix ");
-    p!(s, Cyan, "{}\n", prefix);
-    p!(s, None);
+    p!(stdout, Yellow, "Searching for hash with prefix ");
+    p!(stdout, Cyan, "{}\n", prefix);
+    p!(stdout, None);
 
     // Print settings.
     if args.verbosity > 1 {
-        p!(s, None, "  max_variance {}\n", args.max_variance());
-        p!(s, None, "      parallel {}\n", args.parallel());
+        p!(stderr, None, "  max_variance {}\n", args.max_variance());
+        p!(stderr, None, "      parallel {}\n", args.parallel());
     }
 
     let result = commit.brute_force_sha1(&args).expect(
@@ -75,20 +83,20 @@ fn main() -> Result<()> {
 
     // Print more result information.
     if args.verbosity > 0 {
-        p!(s, None, "      author ∆ {}\n", result.da);
-        p!(s, None, "   committer ∆ {}\n", result.dc);
+        p!(stderr, None, "      author ∆ {}\n", result.da);
+        p!(stderr, None, "   committer ∆ {}\n", result.dc);
     }
 
     // Print hash.
-    p!(s, Green, "Found hash ");
-    p!(s, Cyan, "{}", prefix);
-    p!(s, None, "{}\n", &result.sha1[prefix.len()..]);
+    p!(stdout, Green, "Found hash ");
+    p!(stdout, Cyan, "{}", prefix);
+    p!(stdout, None, "{}\n", &result.sha1[prefix.len()..]);
 
     // Print out new commit.
     if args.verbosity > 2 {
-        p!(s, Yellow, "Patched commit ---\n");
-        p!(s, None, "{}\n", result.patched_commit);
-        p!(s, Yellow, "------------------\n");
+        p!(stderr, Yellow, "Patched commit ---\n");
+        p!(stderr, None, "{}\n", result.patched_commit);
+        p!(stderr, Yellow, "------------------\n");
     }
 
     // Write out patched commit.
@@ -104,7 +112,7 @@ fn main() -> Result<()> {
     let sha1_from_git = git::hash_object(&temp_file)?;
     if result.sha1 != sha1_from_git {
         p!(
-            s,
+            stderr,
             Red,
             "Git's hash differs from patched hash!\nOurs:  {}\nGit's: {}\n",
             result.sha1,
@@ -115,9 +123,13 @@ fn main() -> Result<()> {
 
     // Re-write the repository so the last commit has the hash.
     if args.dry_run {
-        p!(s, Red, "Not amending commit due to --dry-run\n");
+        p!(stderr, Red, "Not amending commit due to --dry-run\n");
     } else {
-        p!(s, Yellow, "Patching last commit to include new hash... ");
+        p!(
+            stdout,
+            Yellow,
+            "Patching last commit to include new hash... "
+        );
 
         // Soft reset to the previous commit.
         // If there's only one commit in the repository then this will fail, but that's okay.
@@ -129,10 +141,11 @@ fn main() -> Result<()> {
         // Reset the repository to be pointing at the patched commit.
         git::run(&["reset", "--soft", &result.sha1])?;
 
-        p!(s, Green, "Success!\n");
+        p!(stdout, Green, "Success!\n");
     }
 
-    p!(s, None);
+    p!(stderr, None);
+    p!(stdout, None);
 
     Ok(())
 }

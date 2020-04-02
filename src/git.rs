@@ -75,7 +75,7 @@ pub fn create_post_commit_hook() -> io::Result<()> {
   }
 
   // Write the hook.
-  file.write_fmt(format_args!("{}", "#!/bin/bash\ngash"))?;
+  file.write_fmt(format_args!("{}", "#!/bin/bash\ngash\n"))?;
 
   Ok(())
 }

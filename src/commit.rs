@@ -105,16 +105,17 @@ impl<'a> Commit<'a> {
       // Update progress.
       if args.progress() {
         let mut state = state.lock().unwrap();
-        state.count += 1;
 
         if state.found {
           return None;
         }
 
         if state.count % 1000 == 0 {
-          print!("\r{}hashes {}k", padding, state.count / 1000);
+          eprint!("\r{}hashes {}k", padding, state.count / 1000);
           io::stdout().flush().unwrap();
         }
+
+        state.count += 1;
       }
 
       // Patch the commit.
@@ -135,7 +136,7 @@ impl<'a> Commit<'a> {
             state.found = true;
 
             // Move the terminal cursor to the next line.
-            println!("");
+            eprintln!("");
           }
 
           // Return our result.
