@@ -20,7 +20,7 @@ impl Spiral {
     }
 
     /// Returns a parallel iterator over the spiral values.
-    pub fn par_iter(self) -> impl rayon::iter::ParallelIterator<Item = (i64, i64)> {
+    pub fn par_iter(self) -> impl ParallelIterator<Item = (i64, i64)> {
         self.range.into_par_iter().map(Self::pair)
     }
 
