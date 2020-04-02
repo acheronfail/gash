@@ -60,6 +60,11 @@ pub struct Args {
   #[clap(skip)]
   _color: bool,
 
+  /// This will always attempt to find a new hash, even if the current commit
+  /// already starts with the prefix.
+  #[clap(short = "f", long = "force")]
+  pub force: bool,
+
   /// Whether or not to perform a dry run. This won't patch the latest commit,
   /// it will just print the hash.
   #[clap(short = "d", long = "dry-run")]

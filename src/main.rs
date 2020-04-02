@@ -2,6 +2,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::process;
 
+use anyhow::Result;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 mod cli;
@@ -34,43 +35,65 @@ fn validate_prefix(prefix: &str) {
     }
 }
 
-fn main() {
+// A simpler and more terse way to change terminal colors.
+macro_rules! c {
+    ($stdout:ident, None) => {
+        $stdout.set_color(ColorSpec::new().set_fg(None))?;
+    };
+    ($stdout:ident, $color:ident) => {
+        $stdout.set_color(ColorSpec::new().set_fg(Some(Color::$color)))?;
+    };
+
+    ($stdout:ident, None, $fmt:expr) => {
+        $stdout.set_color(ColorSpec::new().set_fg(None))?;
+        write!(&mut $stdout, $fmt)?;
+    };
+    ($stdout:ident, $color:ident, $fmt:expr) => {
+        $stdout.set_color(ColorSpec::new().set_fg(Some(Color::$color)))?;
+        write!(&mut $stdout, $fmt)?;
+    };
+
+    ($stdout:ident, None, $fmt:expr, $( $fmt_arg:expr ),*) => {
+        $stdout.set_color(ColorSpec::new().set_fg(None))?;
+        write!(&mut $stdout, $fmt, $($fmt_arg),*)?;
+    };
+    ($stdout:ident, $color:ident, $fmt:expr, $( $fmt_arg:expr ),*) => {
+        $stdout.set_color(ColorSpec::new().set_fg(Some(Color::$color)))?;
+        write!(&mut $stdout, $fmt, $($fmt_arg),*)?;
+    };
+}
+
+fn main() -> Result<()> {
     let args = Args::parse(git::config);
-    validate_prefix(&args.prefix());
+    let prefix = args.prefix();
+    validate_prefix(&prefix);
 
-    let commit_str =
-        git::run(&["cat-file", "-p", "HEAD"]).expect("Failed to fetch the latest commit");
-    let commit = Commit::new(&commit_str);
-
-    let mut stdout = StandardStream::stdout(match args.color() {
+    let mut s = StandardStream::stdout(match args.color() {
         true => ColorChoice::Auto,
         false => ColorChoice::Never,
     });
 
-    // Simple way to change terminal color.
-    macro_rules! c {
-        ($spec:expr) => {
-            stdout.set_color(ColorSpec::new().set_fg($spec)).unwrap();
-        };
-        ($spec:expr, $fmt:expr) => {
-            stdout.set_color(ColorSpec::new().set_fg($spec)).unwrap();
-            write!(&mut stdout, $fmt).unwrap();
-        };
-        ($spec:expr, $fmt:expr, $( $arg:expr ),*) => {
-            stdout.set_color(ColorSpec::new().set_fg($spec)).unwrap();
-            write!(&mut stdout, $fmt, $($arg),*).unwrap();
-        };
+    // Check if the hash doesn't already start with the prefix.
+    let curr_hash = git::run(&["rev-parse", "HEAD"])?;
+    if !args.force && curr_hash.starts_with(&prefix) {
+        c!(s, Green, "Nothing to do, current hash: ");
+        c!(s, Cyan, "{}", prefix);
+        c!(s, None, "{}\n", &curr_hash[prefix.len()..]);
+        return Ok(());
     }
 
+    let commit_str = git::run(&["cat-file", "-p", "HEAD"])?;
+    let commit = Commit::new(&commit_str);
+
     // Print results.
-    c!(Some(Color::Yellow), "Searching for hash with prefix ");
-    c!(Some(Color::Cyan), "{}\n", args.prefix());
-    c!(None);
+    c!(s, Yellow, "Searching for hash with prefix ");
+    c!(s, Cyan, "{}\n", prefix);
+    c!(s, None);
 
     // Print settings.
     if args.verbosity > 1 {
-        c!(None, "  max_variance {}\n", args.max_variance());
-        c!(None, "      parallel {}\n", args.parallel());
+        c!(s, None, "  max_variance {}\n", args.max_variance());
+        c!(s, None, "      parallel {}\n", args.parallel());
     }
 
     let result = commit.brute_force_sha1(&args).expect(
@@ -79,20 +102,20 @@ fn main() {
 
     // Print more result information.
     if args.verbosity > 0 {
-        c!(None, "      author ∆ {}\n", result.da);
-        c!(None, "   committer ∆ {}\n", result.dc);
+        c!(s, None, "      author ∆ {}\n", result.da);
+        c!(s, None, "   committer ∆ {}\n", result.dc);
     }
 
     // Print hash.
-    c!(Some(Color::Green), "Found hash ");
-    c!(Some(Color::Cyan), "{}", args.prefix());
-    c!(None, "{}\n", &result.sha1[args.prefix().len()..]);
+    c!(s, Green, "Found hash ");
+    c!(s, Cyan, "{}", prefix);
+    c!(s, None, "{}\n", &result.sha1[prefix.len()..]);
 
     // Print out new commit.
     if args.verbosity > 2 {
-        c!(Some(Color::Yellow), "Patched commit ---\n");
-        c!(None, "{}\n", result.patched_commit);
-        c!(Some(Color::Yellow), "------------------\n");
+        c!(s, Yellow, "Patched commit ---\n");
+        c!(s, None, "{}\n", result.patched_commit);
+        c!(s, Yellow, "------------------\n");
     }
 
     // Write out patched commit.
@@ -101,16 +124,15 @@ fn main() {
         .create(true)
         .write(true)
         .truncate(true)
-        .open(&temp_file)
-        .expect("Failed to open temp file")
-        .write_fmt(format_args!("{}", result.patched_commit))
-        .expect("Failed to write to temp file");
+        .open(&temp_file)?
+        .write_fmt(format_args!("{}", result.patched_commit))?;
 
     // Get git to hash the temp file, and double check we patched it correctly.
-    let sha1_from_git = git::hash_object(&temp_file).expect("Failed to hash patched commit");
+    let sha1_from_git = git::hash_object(&temp_file)?;
     if result.sha1 != sha1_from_git {
         c!(
-            Some(Color::Red),
+            s,
+            Red,
             "Git's hash differs from patched hash!\nOurs:  {}\nGit's: {}\n",
             result.sha1,
             sha1_from_git
@@ -120,31 +142,24 @@ fn main() {
 
     // Re-write the repository so the last commit has the hash.
     if args.dry_run {
-        c!(Some(Color::Red), "Not amending commit due to --dry-run\n");
+        c!(s, Red, "Not amending commit due to --dry-run\n");
     } else {
-        c!(
-            Some(Color::Yellow),
-            "Patching last commit to include new hash... "
-        );
+        c!(s, Yellow, "Patching last commit to include new hash... ");
 
         // Soft reset to the previous commit.
         // If there's only one commit in the repository then this will fail, but that's okay.
         let _ = git::run(&["reset", "--soft", "HEAD^"]);
 
         // Hash the patched commit, and write it into git's object store.
-        if git::run(&["hash-object", "-t", "commit", "-w", &temp_file]).is_err() {
-            c!(Some(Color::Red), "Failed to hash patched commit");
-            process::exit(1);
-        }
+        git::run(&["hash-object", "-t", "commit", "-w", &temp_file])?;
 
         // Reset the repository to be pointing at the patched commit.
-        if git::run(&["reset", "--soft", &result.sha1]).is_err() {
-            c!(Some(Color::Red), "Failed to reset repo to patched commit");
-            process::exit(1);
-        }
+        git::run(&["reset", "--soft", &result.sha1])?;
 
-        c!(Some(Color::Green), "Success!\n");
+        c!(s, Green, "Success!\n");
     }
 
-    c!(None);
+    c!(s, None);
+
+    Ok(())
 }
