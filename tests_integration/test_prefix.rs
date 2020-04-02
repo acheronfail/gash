@@ -36,7 +36,7 @@ gashtest!(dry_run_long_prefix, |mut tcmd: TestCommand| {
   assert_eq!(hash_before, hash_after);
 });
 
-// Test fails if not run in a git repostiory.
+// Should fail if not run in a git repostiory.
 gashtest!(it_does_not_work_outside_of_git, |mut tcmd: TestCommand| {
   fs::remove_dir_all(&tcmd.dir().join(".git")).unwrap();
 
