@@ -1,11 +1,14 @@
 use std::fs;
 
+use pretty_assertions::assert_eq;
+
 use crate::util::{git_last_hash, TestCommand};
 
+const PREFIX: &str = "1337";
+
 // Simple run with prefix.
-gashtest!(it_finds_a_prefix, |mut tcmd: TestCommand| {
-  let prefix = "dead";
-  let stdout = tcmd.args(&[prefix]).stdout();
+gashtest!(finds_prefix_and_patches_commit, |mut tcmd: TestCommand| {
+  let stdout = tcmd.args(&[PREFIX]).stdout();
 
   let expected = format!(
     "\
@@ -13,22 +16,22 @@ Searching for hash with prefix {prefix}
 Found hash {prefix}{hash}
 Patching last commit to include new hash... Success!
 ",
-    prefix = prefix,
-    hash = &git_last_hash(tcmd.dir())[prefix.len()..]
+    prefix = PREFIX,
+    hash = &git_last_hash(tcmd.dir())[PREFIX.len()..]
   );
 
-  eqnice!(expected, stdout);
+  assert_eq!(expected, stdout);
 });
 
 // Does not patch the commit with --dry-run.
 gashtest!(dry_run_long_prefix, |mut tcmd: TestCommand| {
   let hash_before = git_last_hash(tcmd.dir());
-  let stdout = tcmd.args(&["dead", "--dry-run"]).stdout();
+  let stderr = tcmd.args(&[PREFIX, "--dry-run"]).stderr();
   let hash_after = git_last_hash(tcmd.dir());
 
   assert_eq!(
     true,
-    stdout.contains(&"Not amending commit due to --dry-run")
+    stderr.contains(&"Not amending commit due to --dry-run")
   );
   assert_eq!(hash_before, hash_after);
 });
@@ -43,5 +46,5 @@ Error: the command: 'git rev-parse HEAD' failed with:
 fatal: not a git repository (or any parent up to mount point /)
 Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
 ";
-  eqnice!(expected, tcmd.args(&["dead"]).stderr());
+  assert_eq!(expected, tcmd.args(&[PREFIX]).stderr());
 });

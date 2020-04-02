@@ -6,4 +6,6 @@ mod macros;
 mod util;
 
 // Tests themselves.
+mod test_config;
+mod test_hook;
 mod test_prefix;

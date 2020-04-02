@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -113,6 +113,33 @@ impl TestCommand {
   pub fn args(&mut self, args: &[&str]) -> &mut Self {
     self.cmd.args(args);
     self
+  }
+
+  pub fn git(&self, args: &[&str]) -> String {
+    git(&self.dir, args).unwrap()
+  }
+
+  /// Get combined output from stdout and stderr. This consumes the TestCommand
+  /// since it makes one-way changes to `self.cmd`.
+  #[allow(dead_code)]
+  pub fn all_output(mut self) -> String {
+    let (mut reader, writer) = os_pipe::pipe().unwrap();
+    self.cmd.stdout(writer.try_clone().unwrap());
+    self.cmd.stderr(writer);
+
+    let mut handle = self.cmd.spawn().unwrap();
+
+    // Need to drop the Command object since it is now owning the references to
+    // the writers. When it's dropped, they're dropped and this makes the reader
+    // report EOF.
+    // See: https://docs.rs/os_pipe/0.9.1/os_pipe/
+    drop(self.cmd);
+
+    let mut output = String::new();
+    reader.read_to_string(&mut output).unwrap();
+    handle.wait().unwrap();
+
+    output
   }
 
   pub fn stdout(&mut self) -> String {
