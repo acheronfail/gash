@@ -8,7 +8,7 @@ readme = "README.md"
 license = "Unlicense OR MIT"
 homepage = "https://github.com/acheronfail/gash"
 repository = "https://github.com/acheronfail/gash"
-build = "ci/build-clap-v3.rs"
+build = "build.rs"
 
 [[test]]
 name = "integration"
