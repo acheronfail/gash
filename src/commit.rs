@@ -44,9 +44,12 @@ struct Timestamp {
 }
 
 impl Timestamp {
+    /// Regular expression that extracts the unix timestamp and timezone from a commit object.
     const COMMIT_TIMESTAMP_RE: &'static str =
         r"(?m)^(?:(?:author|committer).*> )((?P<timestamp>\d+)\s\+\d{4})\s*$";
 
+    /// Create a `Timestamp` from a `Capture` object.
+    /// The `Capture` should have been generated with `Timestamp::COMMIT_TIMESTAMP_RE`.
     pub fn from_capture(cap: &Captures) -> Timestamp {
         let timestamp_and_tz = cap.get(1).unwrap();
         let timestamp = cap.get(2).unwrap();
@@ -95,6 +98,8 @@ impl<'a> Commit<'a> {
         text
     }
 
+    /// Brute force the sha1 hash of the commit, by patching the commit's timestamps
+    /// and trying to change the author and committer timestamps as little as possible.
     pub fn brute_force_sha1(&self, args: &Args) -> Option<BruteForceResult> {
         let prefix = &args.prefix();
         let hash_is_correct = create_validator(prefix);
