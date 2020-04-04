@@ -76,14 +76,14 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn parse(git_config: fn(name: &str) -> Option<String>) -> Args {
+    pub fn parse(get_config: fn(name: &str) -> Option<String>) -> Args {
         let mut args = <Args as Clap>::parse();
 
         let parse_bool = |val, name| {
             if val {
                 true
             } else {
-                match git_config(&format!("gash.{}", name)) {
+                match get_config(&format!("gash.{}", name)) {
                     Some(s) => s == "true",
                     None => false,
                 }
@@ -92,13 +92,13 @@ impl Args {
 
         args._prefix = match &args.prefix {
             Some(prefix) => prefix.to_string(),
-            None => git_config("gash.default")
+            None => get_config("gash.default")
                 .expect("No prefix given and no value set for gash.default in git config"),
         };
 
         args._max_variance = match args.max_variance {
             Some(max_variance) => max_variance,
-            None => git_config("gash.max-variance").map_or_else(
+            None => get_config("gash.max-variance").map_or_else(
                 || DEFAULT_MAX_VARIANCE,
                 |s| {
                     s.parse::<i64>()
