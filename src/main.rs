@@ -21,7 +21,14 @@ use spiral::Spiral;
 
 // Validate prefix is hex or handle special "hook" value.
 fn validate_prefix(prefix: &str) {
-    match hex::decode(&prefix) {
+    // In order to validate as hex the string must be of even length.
+    let normalised_prefix = if prefix.len() % 2 == 0 {
+        String::from(prefix)
+    } else {
+        format!("{}0", prefix)
+    };
+
+    match hex::decode(normalised_prefix) {
         Ok(_) => {}
         Err(_) => {
             if prefix == "hook" {
@@ -29,7 +36,7 @@ fn validate_prefix(prefix: &str) {
                 process::exit(0);
             }
 
-            println!(
+            eprintln!(
                 "The prefix must only contain hex characters! Got: {}",
                 &prefix,
             );

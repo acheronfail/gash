@@ -23,6 +23,37 @@ Patching last commit to include new hash... Success!
     assert_eq!(expected, stdout);
 });
 
+// Works with a prefix of odd length.
+gashtest!(allows_prefixes_of_odd_length, |mut tcmd: TestCommand| {
+    let odd_prefix = "123";
+    let stdout = tcmd.args(&[odd_prefix]).stdout();
+
+    let expected = format!(
+        "\
+Searching for hash with prefix {prefix}
+Found hash {prefix}{hash}
+Patching last commit to include new hash... Success!
+",
+        prefix = odd_prefix,
+        hash = &git_last_hash(tcmd.dir())[odd_prefix.len()..]
+    );
+
+    assert_eq!(expected, stdout);
+});
+
+// Does not allow non-hex characters as prefix.
+gashtest!(does_not_allow_non_hex_chars, |mut tcmd: TestCommand| {
+    let bad_prefix = "hello";
+    let stderr = tcmd.args(&[bad_prefix]).stderr();
+    let expected = format!(
+        "\
+The prefix must only contain hex characters! Got: {}
+",
+        bad_prefix
+    );
+    assert_eq!(expected, stderr);
+});
+
 // Does not patch the commit with --dry-run.
 gashtest!(dry_run_long_prefix, |mut tcmd: TestCommand| {
     let hash_before = git_last_hash(tcmd.dir());
