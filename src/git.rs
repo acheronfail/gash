@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
+use std::path::Path;
 use std::process::Command;
 
 #[derive(Debug)]
@@ -44,8 +45,13 @@ pub fn run(args: &[&str]) -> Result<String, GitError> {
 }
 
 /// Ask git to hash an object.
-pub fn hash_object<S: AsRef<str>>(temp_file: S) -> Result<String, GitError> {
-    run(&["hash-object", "-t", "commit", temp_file.as_ref()])
+pub fn hash_object<R: AsRef<Path>>(temp_file: R) -> Result<String, GitError> {
+    run(&[
+        "hash-object",
+        "-t",
+        "commit",
+        &format!("{}", temp_file.as_ref().display()),
+    ])
 }
 
 /// Get a git config value.

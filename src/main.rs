@@ -4,6 +4,7 @@ use std::process;
 
 use anyhow::Result;
 use clap::crate_version;
+use tempfile;
 use termcolor::{ColorChoice, StandardStream, WriteColor};
 
 mod cli;
@@ -103,7 +104,7 @@ fn main() -> Result<()> {
     }
 
     // Write out patched commit.
-    let temp_file = "/tmp/gash";
+    let temp_file = tempfile::NamedTempFile::new()?;
     OpenOptions::new()
         .create(true)
         .write(true)
@@ -112,7 +113,7 @@ fn main() -> Result<()> {
         .write_fmt(format_args!("{}", result.patched_commit))?;
 
     // Get git to hash the temp file, and double check we patched it correctly.
-    let sha1_from_git = git::hash_object(&temp_file)?;
+    let sha1_from_git = git::hash_object(temp_file.path())?;
     if result.sha1 != sha1_from_git {
         p!(
             stderr,
@@ -139,7 +140,13 @@ fn main() -> Result<()> {
         let _ = git::run(&["reset", "--soft", "HEAD^"]);
 
         // Hash the patched commit, and write it into git's object store.
-        git::run(&["hash-object", "-t", "commit", "-w", &temp_file])?;
+        git::run(&[
+            "hash-object",
+            "-t",
+            "commit",
+            "-w",
+            &format!("{}", temp_file.path().display()),
+        ])?;
 
         // Reset the repository to be pointing at the patched commit.
         git::run(&["reset", "--soft", &result.sha1])?;
