@@ -85,8 +85,7 @@ gashtest!(it_does_not_work_outside_of_git, |mut tcmd: TestCommand| {
     let expected = "\
 Error: the command: 'git rev-parse HEAD' failed with:
 
-fatal: not a git repository (or any parent up to mount point /)
-Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
-";
-    assert_eq!(expected, tcmd.args(&[PREFIX]).stderr());
+fatal: not a git repository";
+    let result = tcmd.args(&[PREFIX]).stderr();
+    assert!(result.contains(expected));
 });
