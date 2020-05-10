@@ -43,6 +43,17 @@ Patching last commit to include new hash... Success!
 
 // Does not allow non-hex characters as prefix.
 gashtest!(does_not_allow_non_hex_chars, |mut tcmd: TestCommand| {
+    let bad_prefix = "food";
+    let stderr = tcmd.args(&[bad_prefix]).stderr();
+    let expected = format!(
+        "\
+The prefix must only contain hex characters! Got: {}
+",
+        bad_prefix
+    );
+    assert_eq!(expected, stderr);
+});
+gashtest!(does_not_allow_non_hex_chars_odd_length, |mut tcmd: TestCommand| {
     let bad_prefix = "hello";
     let stderr = tcmd.args(&[bad_prefix]).stderr();
     let expected = format!(
