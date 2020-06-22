@@ -4,7 +4,6 @@ use std::process;
 
 use anyhow::Result;
 use clap::crate_version;
-use tempfile;
 use termcolor::{ColorChoice, StandardStream, WriteColor};
 
 mod cli;

@@ -66,17 +66,16 @@ _deploy_on: &deploy_on
   condition: $TRAVIS_RUST_VERSION = stable && $TARGET != ""
 
 deploy:
-  # TODO: wait for clap v3 and then deploy to crates.io
-  # # Deploy to crates.
-  # - provider: cargo
-  #   # NOTE updating the `token.secure`
-  #   # - go to: https://crates.io/me
-  #   # - generate new token
-  #   # - encrypt it using: `travis encrypt API_KEY_HERE`
-  #   # - paste the output below
-  #   token:
-  #     secure: ppZgvB+JmWOVKnxyPlWM9iG8ZFHK57RuVJDjG1pboWs35SK4GqOmootvBBF/WI2UbJIUS54cdMgp0fGAlPaOILNHT+XUK6sVM5W671Ul+5tNBcB9ycX4schiZxv+TGgnUO3VycazZ/6I4SsUwKsIRsQj0Eikjd5bannsCDpBCfR7EuSk28JxYePSQ/oLxhsITIFrb60thiJxXqwkEHG6XoG/LBhAy6yXYNt+x4VtQ8H5l02YCLQcLoReQRwwbUCoVaGdgZsh8fa07HhQor0U3SUMzBihoHQZDvEuF3QbaE9EWs8tUOasoLbNTaCqk21mjqpuE9DCHCLTMevUb0n0whD7AtI4Qh/ejkJsd9YRTnD6M7VUbxPND8vj65u6VwOd2yqkSZlHjptvZtzrzHmOrib/PNvlAJlzDIdUMxwc3SjhwEUaztgFqIfjd1gkNIRtIioGPX+CSgOg9CiHKM0cLU5yR+0WuUmLR5iAYhWsRdRZRZbnGcoLg5r21bVRxk77FogKDM2cEl0YBYnnDcZybXCGd5Qd6fLgB70zU46yTIszrqTRmAfKGbEUMlc6f4mWwQm5NPvHiXtIXZ6eSA1HycGxyrkbgUQhSvgYt+DKNMGMHLkArdRzF+UCbzplr2SbJHC+DuF7avFkKwR5zjJIyYVSsbAZ4LspZouoaAiN3Fo=
-  #   on: *deploy_on
+  # Deploy to crates.
+  - provider: cargo
+    # NOTE updating the `token.secure`
+    # - go to: https://crates.io/me
+    # - generate new token
+    # - encrypt it using: `travis encrypt API_KEY_HERE`
+    # - paste the output below
+    token:
+      secure: aCrFN6XDAzWDN8YrWnJ2IDhEDUA5JQzsaR7DS4orMm9xDCf26T+BM4y/IcRNQ4HIuMrDczqrVUeh9sb8wGVVe57dmn5z/KRL6/jH8W2nKRqrLj1Sa5He6oR6Kkeb+AEj1V9cJzqFfM0H66cp/lMhJi+TWW+V05eXKLk1227tybvnn3fd64BB9Sf7W2Cl7VRNu14YDaMOXSE6e8Y8qIMtdVTVimd8/KfRLAu7S7m2BTBXnxUeUlaNNgu7iDNeBzilBSKydYD1AwvKj3YRAgev0OtkA/cQOD7j83T0OHP0K7Q4Gkx2R6SB7Y0aCFourwsIiTcouGyr9JexZw6kBoOSnETQiaRFYrgxnYLloRiTHd93cF54aoqA9BZVBwKxXHBpFgCDiPSG1OMgzzwcB4+N5IEZmkZnDh/Bj/NoWHpMiOi29evwGUPzLgv1njychSY+eTivY+gll2gScAm0D5JrgOjgWYqIjvVqsZeSEK+ZZ2TbZoCBoEiJRvuJD2m/zoAmXPDgfcximty0rfkky1aviQ6norzLb9gZPIadMmRpzb1dbatffVDN6zdDvuwpv4KLX5j/fi0R3PloY49kJRX/sTkIVtLOIQC8NpXOUfixBYW5uYJM0tfh2k/07LITJKWF+JrGTPrLMhiHJTrY8SsETVOMWVDxfxJLpPku9EGF1PE=
+    on: *deploy_on
 
   # Deploy to GitHub releases.
   - provider: releases

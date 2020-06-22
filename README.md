@@ -6,10 +6,13 @@
 
 See the [releases] page for pre-compiled binaries.
 
-#### From Source (via Cargo)
+#### Via Cargo
 
-Until `clap v3` is published, you'll have to install this package locally.
-This crate can't be published until `clap v3` is published too.
+```bash
+cargo install gash
+```
+
+#### From Source (via Cargo)
 
 ```bash
 git clone https://github.com/acheronfail/gash/
