@@ -22,7 +22,7 @@ pub struct Args {
 
     /// Whether brute forcing the hash should be run in parallel.
     /// Alternatively you may set "git config --global gash.parallel true".
-    #[clap(short = "p", long = "parallel")]
+    #[clap(short = 'p', long = "parallel")]
     parallel: bool,
 
     /// This field is used to cache the computed parallel so it's not re-computed
@@ -32,7 +32,7 @@ pub struct Args {
 
     /// The max distance (in seconds) gash can modify the commit times.
     /// Defaults to one hour.
-    #[clap(short = "m", long = "max-variance")]
+    #[clap(short = 'm', long = "max-variance")]
     max_variance: Option<i64>,
 
     /// This field is used to cache the computed max_variance so it's not re-computed
@@ -42,7 +42,7 @@ pub struct Args {
 
     /// Whether or not to print progress. Note that this has a negative performance impact.
     /// Alternatively you may set "git config --global gash.progress true".
-    #[clap(short = "P", long = "progress")]
+    #[clap(short = 'P', long = "progress")]
     progress: bool,
 
     /// This field is used to cache the computed progress so it's not re-computed
@@ -52,7 +52,7 @@ pub struct Args {
 
     /// Color text output when printing to the terminal.
     /// Alternatively you may set "git config --global gash.color true".
-    #[clap(short = "c", long = "color")]
+    #[clap(short = 'c', long = "color")]
     color: bool,
 
     /// This field is used to cache the computed color so it's not re-computed
@@ -62,16 +62,16 @@ pub struct Args {
 
     /// This will always attempt to find a new hash, even if the current commit
     /// already starts with the prefix.
-    #[clap(short = "f", long = "force")]
+    #[clap(short = 'f', long = "force")]
     pub force: bool,
 
     /// Whether or not to perform a dry run. This won't patch the latest commit,
     /// it will just print the hash.
-    #[clap(short = "d", long = "dry-run")]
+    #[clap(short = 'd', long = "dry-run")]
     pub dry_run: bool,
 
     /// Output more information.
-    #[clap(short = "v", long = "verbose", parse(from_occurrences))]
+    #[clap(short = 'v', long = "verbose", parse(from_occurrences))]
     pub verbosity: usize,
 }
 

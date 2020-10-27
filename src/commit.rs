@@ -128,10 +128,10 @@ impl<'a> Commit<'a> {
 
             // Hash the commit.
             let mut hasher = Sha1::new();
-            hasher.input(&format!("commit {}\0{}", new_commit.len(), new_commit));
+            hasher.write_all(&format!("commit {}\0{}", new_commit.len(), new_commit).as_bytes()).unwrap();
 
             // Check if the hash starts with our prefix.
-            let hash = hasher.result();
+            let hash = hasher.finalize();
             if hash_is_correct(hash) {
                 if args.progress() {
                     // Update the state (this stops other parallel threads from logging after we've already found something).
