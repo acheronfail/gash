@@ -128,7 +128,7 @@ impl<'a> Commit<'a> {
 
             // Hash the commit.
             let mut hasher = Sha1::new();
-            hasher.write_all(&format!("commit {}\0{}", new_commit.len(), new_commit).as_bytes()).unwrap();
+            hasher.write_fmt(format_args!("commit {}\0{}", new_commit.len(), new_commit)).unwrap();
 
             // Check if the hash starts with our prefix.
             let hash = hasher.finalize();
