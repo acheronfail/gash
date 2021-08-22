@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -15,6 +15,10 @@ impl GitError {
         GitError {
             stderr: stderr.as_ref().to_string(),
         }
+    }
+
+    pub fn from_io_error(e: io::Error) -> GitError {
+        GitError::new(format!("{}", e))
     }
 }
 
@@ -66,6 +70,17 @@ fn root() -> Option<PathBuf> {
         .map(|s| PathBuf::from(s))
 }
 
+const SCRIPT_SHEBANGS: [&str; 8] = [
+    "#!/bin/sh",
+    "#!/bin/bash",
+    "#!/bin/zsh",
+    "#!/bin/ash",
+    "#!/usr/bin/env sh",
+    "#!/usr/bin/env bash",
+    "#!/usr/bin/env zsh",
+    "#!/usr/bin/env ash",
+];
+
 /// Create a simple post-commit hook that runs `gash`.
 pub fn create_post_commit_hook() -> Result<(), GitError> {
     // Find git root.
@@ -80,10 +95,59 @@ pub fn create_post_commit_hook() -> Result<(), GitError> {
 
     let hooks_dir = git_root.join(".git").join("hooks");
     let post_commit_hook = hooks_dir.join("post-commit");
-    println!("Adding git hook to {}", post_commit_hook.display());
 
     // Create directories.
-    fs::create_dir_all(&hooks_dir).map_err(|e| GitError::new(format!("{}", e)))?;
+    fs::create_dir_all(&hooks_dir).map_err(GitError::from_io_error)?;
+
+    if post_commit_hook.exists() {
+        let existing_hook =
+            fs::read_to_string(&post_commit_hook).map_err(GitError::from_io_error)?;
+        let existing_hook_lines = existing_hook.lines().collect::<Vec<_>>();
+
+        // Dumb check to see if hook is a shell script
+        let is_shell_script = existing_hook_lines
+            .first()
+            .map(|s| SCRIPT_SHEBANGS.iter().any(|shebang| s.contains(shebang)))
+            .unwrap_or(false);
+
+        // Another dumb check to see if our hook already exists
+        let contains_hook = existing_hook_lines.iter().any(|line| line.contains("gash"));
+
+        if contains_hook {
+            println!(
+                "The git hook at {} already calls gash!",
+                post_commit_hook.display()
+            );
+            return Ok(());
+        }
+        if !is_shell_script {
+            println!(
+                "The git hook at {} is not a script, cannot add in gash hook!",
+                post_commit_hook.display()
+            );
+            return Ok(());
+        }
+
+        println!(
+            "Patching existing git hook at {}",
+            post_commit_hook.display()
+        );
+        OpenOptions::new()
+            .write(true)
+            .append(true)
+            .open(&post_commit_hook)
+            .map_err(GitError::from_io_error)?
+            .write_fmt(format_args!("{}", "\n\ngash\n"))
+            .map_err(GitError::from_io_error)?;
+    } else {
+        post_commit_hook_write_file(post_commit_hook)?;
+    }
+
+    Ok(())
+}
+
+fn post_commit_hook_write_file(post_commit_hook: PathBuf) -> Result<(), GitError> {
+    println!("Creating git hook at {}", post_commit_hook.display());
 
     // Create file.
     let mut file = OpenOptions::new()
@@ -91,7 +155,7 @@ pub fn create_post_commit_hook() -> Result<(), GitError> {
         .write(true)
         .truncate(true)
         .open(&post_commit_hook)
-        .map_err(|e| GitError::new(format!("{}", e)))?;
+        .map_err(GitError::from_io_error)?;
 
     // Make it executable on unix.
     if cfg!(unix) {
@@ -99,16 +163,15 @@ pub fn create_post_commit_hook() -> Result<(), GitError> {
 
         let mut perms = file
             .metadata()
-            .map_err(|e| GitError::new(format!("{}", e)))?
+            .map_err(GitError::from_io_error)?
             .permissions();
         perms.set_mode(0o755);
-        fs::set_permissions(post_commit_hook, perms)
-            .map_err(|e| GitError::new(format!("{}", e)))?;
+        fs::set_permissions(post_commit_hook, perms).map_err(GitError::from_io_error)?;
     }
 
     // Write the hook.
     file.write_fmt(format_args!("{}", "#!/bin/bash\ngash\n"))
-        .map_err(|e| GitError::new(format!("{}", e)))?;
+        .map_err(GitError::from_io_error)?;
 
     Ok(())
 }
