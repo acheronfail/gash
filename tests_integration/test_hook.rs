@@ -8,7 +8,7 @@ gashtest!(adds_git_post_commit_hook, |mut tcmd: TestCommand| {
     let stdout = tcmd.args(&["hook"]).stdout();
 
     let expected = "\
-Adding git hook to .git/hooks/post-commit
+Creating git hook at .git/hooks/post-commit
 ";
     assert_eq!(expected, stdout);
 

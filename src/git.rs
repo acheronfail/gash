@@ -116,21 +116,21 @@ pub fn create_post_commit_hook() -> Result<(), GitError> {
         if contains_hook {
             println!(
                 "The git hook at {} already calls gash!",
-                post_commit_hook.display()
+                relative_path_display(&post_commit_hook)?
             );
             return Ok(());
         }
         if !is_shell_script {
             println!(
                 "The git hook at {} is not a script, cannot add in gash hook!",
-                post_commit_hook.display()
+                relative_path_display(&post_commit_hook)?
             );
             return Ok(());
         }
 
         println!(
             "Patching existing git hook at {}",
-            post_commit_hook.display()
+            relative_path_display(&post_commit_hook)?
         );
         OpenOptions::new()
             .write(true)
@@ -146,8 +146,20 @@ pub fn create_post_commit_hook() -> Result<(), GitError> {
     Ok(())
 }
 
+fn relative_path_display(post_commit_hook: &PathBuf) -> Result<String, GitError> {
+    let cwd = std::env::current_dir().map_err(GitError::from_io_error)?;
+    Ok(post_commit_hook
+        .strip_prefix(cwd)
+        .expect("failed to produce a relative path")
+        .display()
+        .to_string())
+}
+
 fn post_commit_hook_write_file(post_commit_hook: PathBuf) -> Result<(), GitError> {
-    println!("Creating git hook at {}", post_commit_hook.display());
+    println!(
+        "Creating git hook at {}",
+        relative_path_display(&post_commit_hook)?
+    );
 
     // Create file.
     let mut file = OpenOptions::new()
