@@ -146,13 +146,14 @@ pub fn create_post_commit_hook() -> Result<(), GitError> {
     Ok(())
 }
 
-fn relative_path_display(post_commit_hook: &PathBuf) -> Result<String, GitError> {
+fn relative_path_display<P: AsRef<Path>>(post_commit_hook: P) -> Result<String, GitError> {
     let cwd = std::env::current_dir().map_err(GitError::from_io_error)?;
-    Ok(post_commit_hook
-        .strip_prefix(cwd)
-        .expect("failed to produce a relative path")
-        .display()
-        .to_string())
+    pathdiff::diff_paths(&post_commit_hook, cwd)
+        .map(|p| p.display().to_string())
+        .ok_or(GitError::new(format!(
+            "failed to construct a relative path from PWD to {}",
+            post_commit_hook.as_ref().display()
+        )))
 }
 
 fn post_commit_hook_write_file(post_commit_hook: PathBuf) -> Result<(), GitError> {
@@ -186,4 +187,23 @@ fn post_commit_hook_write_file(post_commit_hook: PathBuf) -> Result<(), GitError
         .map_err(GitError::from_io_error)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn relative_path() {
+        let cwd = std::env::current_dir().unwrap();
+        let hook = cwd.join(".git").join("hooks").join("post-commit");
+
+        assert_eq!(relative_path_display(&hook).unwrap(), ".git/hooks/post-commit");
+
+        std::env::set_current_dir(cwd.join("src")).unwrap();
+        assert_eq!(relative_path_display(&hook).unwrap(), "../.git/hooks/post-commit");
+
+        std::env::set_current_dir(cwd.join(".git").join("hooks")).unwrap();
+        assert_eq!(relative_path_display(&hook).unwrap(), "post-commit");
+    }
 }
