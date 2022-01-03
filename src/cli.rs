@@ -1,11 +1,10 @@
-use clap::AppSettings::ColoredHelp;
-use clap::Clap;
+use clap::Parser;
 use clap::{crate_authors, crate_version};
 
 const DEFAULT_MAX_VARIANCE: i64 = 3600;
 
-#[derive(Clap, Debug)]
-#[clap(version = crate_version!(), author = crate_authors!(), global_setting(ColoredHelp))]
+#[derive(Parser, Debug)]
+#[clap(version = crate_version!(), author = crate_authors!())]
 pub struct Args {
     /// A hex string which is the desired prefix of the hash. If this is not provided then it defaults
     /// to "git config --global gash.default".
@@ -77,7 +76,7 @@ pub struct Args {
 
 impl Args {
     pub fn parse(get_config: fn(name: &str) -> Option<String>) -> Args {
-        let mut args = <Args as Clap>::parse();
+        let mut args = <Args as Parser>::parse();
 
         let parse_bool = |val, name| {
             if val {

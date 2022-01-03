@@ -1,31 +1,37 @@
+use clap::IntoApp;
+use clap_complete::{generate_to, shells};
 use std::env;
-use std::fs::{self, File};
-use std::path::Path;
-
-use clap::{crate_name, IntoApp};
-use clap_generate::{generate, generators};
+use std::io::Error;
 
 #[allow(dead_code)]
 #[path = "src/cli.rs"]
 mod cli;
 
-fn main() {
+fn main() -> Result<(), Error> {
+    let outdir = match env::var_os("OUT_DIR") {
+        None => return Ok(()),
+        Some(outdir) => outdir,
+    };
+
     let mut app = cli::Args::into_app();
-    let name = crate_name!();
-    let bin_name = "rgr";
+    macro_rules! gen {
+        ($shell:expr) => {{
+            let path = generate_to(
+                $shell,
+                &mut app,            // We need to specify what generator to use
+                clap::crate_name!(), // We need to specify the bin name manually
+                &outdir,             // We need to specify where to write to
+            )?;
 
-    // https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script
-    let outdir = env::var_os("OUT_DIR").expect("failed to find OUT_DIR");
-    fs::create_dir_all(&outdir).expect("failed to create dirs for OUT_DIR");
+            println!("cargo:warning=completion file generated: {:?}", path);
+        }};
+    }
 
-    // Create a stamp file. (This is used by CI to help find the OUT_DIR.)
-    fs::write(Path::new(&outdir).join("gash-stamp"), "").unwrap();
+    gen!(shells::Bash);
+    gen!(shells::Elvish);
+    gen!(shells::Fish);
+    gen!(shells::PowerShell);
+    gen!(shells::Zsh);
 
-    // Generate completions.
-    let f = |name: &str| File::create(Path::new(&outdir).join(name)).unwrap();
-    generate::<generators::Zsh, _>(&mut app, name, &mut f(&format!("_{}", bin_name)));
-    generate::<generators::Bash, _>(&mut app, name, &mut f(&format!("{}.bash", bin_name)));
-    generate::<generators::Fish, _>(&mut app, name, &mut f(&format!("{}.fish", bin_name)));
-    generate::<generators::Elvish, _>(&mut app, name, &mut f(&format!("{}.elvish", bin_name)));
-    generate::<generators::PowerShell, _>(&mut app, name, &mut f(&format!("_{}.ps1", bin_name)));
+    Ok(())
 }
