@@ -13,7 +13,7 @@ fn main() -> Result<(), Error> {
         Some(outdir) => outdir,
     };
 
-    let mut app = args::Args::into_app();
+    let mut app = args::Args::command();
     macro_rules! gen {
         ($shell:expr) => {{
             let path = generate_to(
