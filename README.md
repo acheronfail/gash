@@ -1,10 +1,32 @@
 # GASH: Git hASH
 
+Some questions:
+
+* Do you use `git`?
+* Do you think you're the bee's knees?
+* Do you ever feel like your changes are lost in a sea of commits?
+* Do you want to etch a `<your name> was here` forever into your `git` history?
+
+If you answered yes to any of those questions, or if you just like what you see when you look in the mirror, then this tool is for you!
+
+<details>
+  <summary>How does it work?</summary>
+
+  It makes your last commit contain a provided substring.
+  It does this by patching the metadata of the commit, and brute forcing it until it finds a match!
+
+  For more detail, see the genius who thought of it first:
+
+  * https://github.com/will/git-vain
+    * https://youtu.be/Jcto0Bs1hIA?t=85
+
+</details>
+
 ## Installation
 
 #### Precompiled binaries
 
-See the [releases] page for pre-compiled binaries.
+See the [releases] page for pre-compiled binaries. (If CI is working, I am tired of fighting with CI.)
 
 #### Via Cargo
 
