@@ -2,11 +2,11 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::process;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::crate_version;
 use termcolor::{ColorChoice, StandardStream, WriteColor};
 
-mod cli;
+mod args;
 mod commit;
 mod git;
 mod hash;
@@ -14,40 +14,19 @@ mod macros;
 mod spiral;
 mod time;
 
-use cli::Args;
+use args::Args;
 use commit::Commit;
 use spiral::Spiral;
 
-// Validate prefix is hex or handle special "hook" value.
-fn validate_prefix(prefix: &str) {
-    // In order to validate as hex the string must be of even length.
-    let normalised_prefix = if prefix.len() % 2 == 0 {
-        String::from(prefix)
-    } else {
-        format!("{}0", prefix)
-    };
-
-    match hex::decode(normalised_prefix) {
-        Ok(_) => {}
-        Err(_) => {
-            if prefix == "hook" {
-                git::create_post_commit_hook().expect("Failed to create git hook");
-                process::exit(0);
-            }
-
-            eprintln!(
-                "The prefix must only contain hex characters! Got: {}",
-                &prefix,
-            );
-            process::exit(1);
-        }
-    }
-}
-
 fn main() -> Result<()> {
-    let args = Args::parse(git::config);
-    let prefix = args.prefix();
-    validate_prefix(&prefix);
+    let args = Args::parse(git::config)?;
+    let signature = args.signature();
+
+    // Handle special "hook" value
+    if matches!(&signature.as_str(), &"hook") {
+        git::create_post_commit_hook()?;
+        process::exit(0);
+    }
 
     // Initialse output handles.
     let (mut stdout, mut stderr) = {
@@ -63,21 +42,38 @@ fn main() -> Result<()> {
         )
     };
 
-    // Check if the hash doesn't already start with the prefix.
+    // Check if the hash doesn't already start/end with the signature.
     let curr_hash = git::run(&["rev-parse", "HEAD"])?;
-    if !args.force && curr_hash.starts_with(&prefix) {
-        p!(stdout, Green, "Nothing to do, current hash: ");
-        p!(stdout, Cyan, "{}", prefix);
-        p!(stdout, None, "{}\n", &curr_hash[prefix.len()..]);
-        return Ok(());
+    if !args.force {
+        if !args.stealth() && curr_hash.starts_with(&signature) {
+            p!(stdout, Green, "Nothing to do, current hash: ");
+            p!(stdout, Cyan, "{}", signature);
+            p!(stdout, None, "{}\n", &curr_hash[signature.len()..]);
+            return Ok(());
+        } else if args.stealth() && curr_hash.ends_with(&signature) {
+            p!(stdout, Green, "Nothing to do, current hash: ");
+            p!(
+                stdout,
+                None,
+                "{}",
+                &curr_hash[..curr_hash.len() - signature.len()]
+            );
+            p!(stdout, Cyan, "{}\n", signature);
+            return Ok(());
+        }
     }
 
     let commit_str = git::run(&["cat-file", "-p", "HEAD"])?;
     let commit = Commit::new(&commit_str);
 
     // Print results.
-    p!(stdout, Yellow, "Searching for hash with prefix ");
-    p!(stdout, Cyan, "{}\n", prefix);
+    p!(
+        stdout,
+        Yellow,
+        "Searching for hash with {} ",
+        if args.stealth() { "suffix" } else { "prefix" }
+    );
+    p!(stdout, Cyan, "{}\n", signature);
     p!(stdout, None);
 
     // Print settings.
@@ -87,9 +83,12 @@ fn main() -> Result<()> {
         p!(stderr, None, "       version {}\n", crate_version!());
     }
 
-    let result = commit.brute_force_sha1(&args).expect(
-        "Failed to brute force hash! Try increasing the variance with the --max-variance flag.",
-    );
+    let result = match commit.brute_force_sha1(&args)? {
+        Some(result) => result,
+        None => bail!(
+            "Failed to brute force hash! Try increasing the variance with the --max-variance flag."
+        ),
+    };
 
     // Print more result information.
     if args.verbosity > 0 {
@@ -99,8 +98,18 @@ fn main() -> Result<()> {
 
     // Print hash.
     p!(stdout, Green, "Found hash ");
-    p!(stdout, Cyan, "{}", prefix);
-    p!(stdout, None, "{}\n", &result.sha1[prefix.len()..]);
+    if args.stealth() {
+        p!(
+            stdout,
+            None,
+            "{}",
+            &result.sha1[..result.sha1.len() - signature.len()]
+        );
+        p!(stdout, Cyan, "{}\n", signature);
+    } else {
+        p!(stdout, Cyan, "{}", signature);
+        p!(stdout, None, "{}\n", &result.sha1[signature.len()..]);
+    }
 
     // Print out new commit.
     if args.verbosity > 2 {

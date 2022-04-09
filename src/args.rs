@@ -1,3 +1,4 @@
+use anyhow::{bail, Result};
 use clap::Parser;
 use clap::{crate_authors, crate_version};
 
@@ -6,18 +7,18 @@ const DEFAULT_MAX_VARIANCE: i64 = 3600;
 #[derive(Parser, Debug)]
 #[clap(version = crate_version!(), author = crate_authors!())]
 pub struct Args {
-    /// A hex string which is the desired prefix of the hash. If this is not provided then it defaults
-    /// to "git config --global gash.default".
+    /// A hex string which is the desired prefix (or suffix if --stealth is used) of the hash.
+    /// If this is not provided then it defaults to "git config --global gash.default".
     /// Avoid using strings greater than four characters long, since the brute-forcing time increases
     /// exponentially.
     ///
     /// Pass the special value "hook" to install a git hook in the current repository.
-    prefix: Option<String>,
+    signature: Option<String>,
 
-    /// This field is used to cache the computed prefix so it's not re-computed each
-    /// time that `.prefix()` is called.
+    /// This field is used to cache the computed signature so it's not re-computed each
+    /// time that `.signature()` is called.
     #[clap(skip)]
-    _prefix: String,
+    _signature: String,
 
     /// Whether brute forcing the hash should be run in parallel.
     /// Alternatively you may set "git config --global gash.parallel true".
@@ -59,6 +60,16 @@ pub struct Args {
     #[clap(skip)]
     _color: bool,
 
+    /// Stealth mode! Leave your mark as a suffix on the rather rather than a prefix!
+    /// Alternatively you may set "git config --global gash.stealth true".
+    #[clap(short = 's', long = "stealth")]
+    stealth: bool,
+
+    /// This field is used to cache the computed stealth so it's not re-computed
+    /// each time that `.stealth()` is called.
+    #[clap(skip)]
+    _stealth: bool,
+
     /// This will always attempt to find a new hash, even if the current commit
     /// already starts with the prefix.
     #[clap(short = 'f', long = "force")]
@@ -75,7 +86,7 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn parse(get_config: fn(name: &str) -> Option<String>) -> Args {
+    pub fn parse(get_config: fn(name: &str) -> Option<String>) -> Result<Args> {
         let mut args = <Args as Parser>::parse();
 
         let parse_bool = |val, name| {
@@ -89,32 +100,50 @@ impl Args {
             }
         };
 
-        args._prefix = match &args.prefix {
+        args._signature = match &args.signature {
             Some(prefix) => prefix.to_string(),
-            None => get_config("gash.default")
-                .expect("No prefix given and no value set for gash.default in git config"),
+            None => match get_config("gash.default") {
+                Some(s) => s,
+                None => bail!("No signature given and no value set for gash.default in git config"),
+            },
         };
+        // SHA1 hashes are 40 characters, so it doesn't make sense if the signature is longer!
+        if args._signature.len() > 40 {
+            bail!("Signature cannot exceed 40 characters in length!");
+        }
+        // Validate signature characters
+        if args._signature != "hook"
+            && args
+                ._signature
+                .chars()
+                .any(|ch| !matches!(ch, '0'..='9' | 'a'..='f'))
+        {
+            bail!(
+                "Signature may only contain [a-z0-9] characters! Got: {}",
+                args._signature
+            );
+        }
 
         args._max_variance = match args.max_variance {
             Some(max_variance) => max_variance,
-            None => get_config("gash.max-variance").map_or_else(
-                || DEFAULT_MAX_VARIANCE,
-                |s| {
-                    s.parse::<i64>()
-                        .expect("Failed to parse gash.max-variance as i64!")
-                },
-            ),
+            None => match get_config("gash.max-variance")
+                .map_or_else(|| Ok(DEFAULT_MAX_VARIANCE), |s| s.parse::<i64>())
+            {
+                Ok(n) => n,
+                Err(e) => bail!("Failed to parse gash.max-variance as i64! Error: {}", e),
+            },
         };
 
         args._parallel = parse_bool(args.parallel, "parallel");
         args._progress = parse_bool(args.progress, "progress");
         args._color = parse_bool(args.color, "color");
+        args._stealth = parse_bool(args.stealth, "stealth");
 
-        args
+        Ok(args)
     }
 
-    pub fn prefix(&self) -> String {
-        String::from(&self._prefix)
+    pub fn signature(&self) -> String {
+        String::from(&self._signature)
     }
 
     pub fn max_variance(&self) -> i64 {
@@ -131,5 +160,9 @@ impl Args {
 
     pub fn color(&self) -> bool {
         self._color
+    }
+
+    pub fn stealth(&self) -> bool {
+        self._stealth
     }
 }

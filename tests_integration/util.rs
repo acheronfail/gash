@@ -35,7 +35,6 @@ pub fn git_last_hash(dir: impl AsRef<Path>) -> String {
 pub struct TestCommand {
     cmd: Command,
     dir: PathBuf,
-    exe: PathBuf,
 }
 
 impl TestCommand {
@@ -69,7 +68,7 @@ impl TestCommand {
         // Change `HOME` so ~/.gitconfig isn't used.
         cmd.env("HOME", &format!("{}", dir.display()));
 
-        TestCommand { cmd, dir, exe }
+        TestCommand { cmd, dir }
     }
 
     pub fn dir(&self) -> PathBuf {

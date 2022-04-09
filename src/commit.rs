@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 
+use anyhow::Result;
 use chrono::{DateTime, FixedOffset};
 use rayon::prelude::*;
 use regex::{Captures, Regex};
@@ -100,9 +101,9 @@ impl<'a> Commit<'a> {
 
     /// Brute force the sha1 hash of the commit, by patching the commit's timestamps
     /// and trying to change the author and committer timestamps as little as possible.
-    pub fn brute_force_sha1(&self, args: &Args) -> Option<BruteForceResult> {
-        let prefix = &args.prefix();
-        let hash_is_correct = create_validator(prefix);
+    pub fn brute_force_sha1(&self, args: &Args) -> Result<Option<BruteForceResult>> {
+        let sig = &args.signature();
+        let hash_is_correct = create_validator(sig, args.stealth())?;
 
         let padding = if args.verbosity > 0 { "        " } else { "" };
         let state = Arc::new(Mutex::new(BruteForceState::new()));
@@ -128,7 +129,9 @@ impl<'a> Commit<'a> {
 
             // Hash the commit.
             let mut hasher = Sha1::new();
-            hasher.write_fmt(format_args!("commit {}\0{}", new_commit.len(), new_commit)).unwrap();
+            hasher
+                .write_fmt(format_args!("commit {}\0{}", new_commit.len(), new_commit))
+                .unwrap();
 
             // Check if the hash starts with our prefix.
             let hash = hasher.finalize();
@@ -155,10 +158,10 @@ impl<'a> Commit<'a> {
         };
 
         let spiral = Spiral::new(args.max_variance());
-        if args.parallel() {
+        Ok(if args.parallel() {
             spiral.par_iter().find_map_any(mapper)
         } else {
             spiral.iter().find_map(mapper)
-        }
+        })
     }
 }

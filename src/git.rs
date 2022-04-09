@@ -198,10 +198,16 @@ mod tests {
         let cwd = std::env::current_dir().unwrap();
         let hook = cwd.join(".git").join("hooks").join("post-commit");
 
-        assert_eq!(relative_path_display(&hook).unwrap(), ".git/hooks/post-commit");
+        assert_eq!(
+            relative_path_display(&hook).unwrap(),
+            ".git/hooks/post-commit"
+        );
 
         std::env::set_current_dir(cwd.join("src")).unwrap();
-        assert_eq!(relative_path_display(&hook).unwrap(), "../.git/hooks/post-commit");
+        assert_eq!(
+            relative_path_display(&hook).unwrap(),
+            "../.git/hooks/post-commit"
+        );
 
         std::env::set_current_dir(cwd.join(".git").join("hooks")).unwrap();
         assert_eq!(relative_path_display(&hook).unwrap(), "post-commit");

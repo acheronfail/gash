@@ -4,8 +4,8 @@ use std::env;
 use std::io::Error;
 
 #[allow(dead_code)]
-#[path = "src/cli.rs"]
-mod cli;
+#[path = "src/args.rs"]
+mod args;
 
 fn main() -> Result<(), Error> {
     let outdir = match env::var_os("OUT_DIR") {
@@ -13,7 +13,7 @@ fn main() -> Result<(), Error> {
         Some(outdir) => outdir,
     };
 
-    let mut app = cli::Args::into_app();
+    let mut app = args::Args::into_app();
     macro_rules! gen {
         ($shell:expr) => {{
             let path = generate_to(
